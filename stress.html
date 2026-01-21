@@ -133,12 +133,12 @@
         };
 
         const MONSTER_TYPES = [
-            { id: 'infinite', text: "没完没了", emoji: "🌀", color: "from-gray-800 to-black", hp: 3 },
-            { id: 'family', text: "无理家属", emoji: "👹", color: "from-red-600 to-red-900", hp: 3 },
-            { id: 'paperwork', text: "该死病历", emoji: "📝", color: "from-blue-700 to-indigo-900", hp: 3 },
-            { id: 'night', text: "讨厌夜班", emoji: "🦇", color: "from-purple-800 to-black", hp: 3 },
-            { id: 'hungry', text: "不爽同事", emoji: "🧟", color: "from-green-700 to-green-950", hp: 3 },
-            { id: 'leader', text: "领导废话", emoji: "🦆", color: "from-yellow-600 to-yellow-900", hp: 3 }
+            { id: 'infinite', text: "该死的没完没了", emoji: "🌀", color: "from-gray-800 to-black", hp: 3 },
+            { id: 'family', text: "该死的无理家属", emoji: "👹", color: "from-red-600 to-red-900", hp: 3 },
+            { id: 'paperwork', text: "该死的病历", emoji: "📝", color: "from-blue-700 to-indigo-900", hp: 3 },
+            { id: 'night', text: "该死的夜班", emoji: "🦇", color: "from-purple-800 to-black", hp: 3 },
+            { id: 'hungry', text: "该死的同事", emoji: "🧟", color: "from-green-700 to-green-950", hp: 3 },
+            { id: 'leader', text: "该死的领导废话", emoji: "🦆", color: "from-yellow-600 to-yellow-900", hp: 3 }
         ];
 
         function render() {
@@ -170,7 +170,7 @@
                         </div>
                         
                         <div id="arena" class="flex-1 relative overflow-hidden">
-                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-center px-10 italic"><p class="text-3xl mb-2">👋</p><p class="text-sm">滑动屏幕切碎烦恼！(需切3下)</p></div>' : ''}
+                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-center px-10 italic"><p class="text-3xl mb-2">👋</p><p class="text-sm">选下面的源头,切碎它们！</p></div>' : ''}
                             ${state.monsters.map(m => `
                                 <div id="m-${m.instanceId}" class="absolute animate-float" 
                                      style="left: ${m.x}%; top: ${m.y}%; transform-origin: center;">
