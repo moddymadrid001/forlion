@@ -8,16 +8,17 @@
     <link rel="stylesheet" href="https://cdn.staticfile.org/tailwindcss/2.2.19/tailwind.min.css">
     <script src="https://cdn.staticfile.org/lucide/0.263.0/lucide.min.js"></script>
     <style>
-        /* 核心布局保底样式：防止白屏 */
+        /* 核心布局保底样式 */
         html, body {
             margin: 0;
             padding: 0;
             width: 100%;
             height: 100%;
-            background-color: #eff6ff; /* 浅蓝色背景 */
+            background-color: #eff6ff;
             font-family: -apple-system, system-ui, "Microsoft YaHei", sans-serif;
             overflow: hidden;
             -webkit-tap-highlight-color: transparent;
+            user-select: none;
         }
         #app {
             width: 100%;
@@ -27,91 +28,129 @@
             opacity: 0;
             transition: opacity 0.5s ease-in;
         }
+
         /* 动画定义 */
         @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            50% { transform: translateY(-10px) rotate(2deg); }
+            0%, 100% { transform: translateY(0px) rotate(-1deg); }
+            50% { transform: translateY(-15px) rotate(1deg); }
         }
-        .animate-float { animation: float 3s ease-in-out infinite; }
+        .animate-float { animation: float 4s ease-in-out infinite; }
+
+        /* 切开效果：闪光轨迹 */
+        .slash-effect {
+            position: absolute;
+            height: 4px;
+            background: white;
+            box-shadow: 0 0 10px white;
+            transform-origin: left center;
+            pointer-events: none;
+            z-index: 100;
+            animation: slash-fade 0.3s forwards;
+        }
+        @keyframes slash-fade {
+            0% { width: 0; opacity: 1; }
+            100% { width: 150px; opacity: 0; }
+        }
+
+        /* 怪物被切开时的动画 */
+        .monster-cut {
+            animation: cut-apart 0.4s ease-out forwards;
+        }
+        @keyframes cut-apart {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(1.5) rotate(10deg); opacity: 0; filter: contrast(200%) brightness(200%); }
+        }
 
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* 压力源特效：那种被人唾弃的“负能量”气场 */
+        .monster-vibe {
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.1);
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), transparent);
+        }
     </style>
 </head>
 <body>
     <div id="app">
-        <!-- JS 将在这里注入内容 -->
         <div style="display:flex; align-items:center; justify-content:center; height:100vh;">
-            <p style="color:#60a5fa;">正在为你加载专属空间...</p>
+            <p style="color:#60a5fa;">正在进入你的专属解压空间...</p>
         </div>
     </div>
 
     <script>
-        // 游戏状态
         const state = {
             mode: 'welcome',
             score: 0,
             monsters: [],
-            breathState: '吸气'
+            lastSlash: { x: 0, y: 0 }
         };
 
         const MONSTER_TYPES = [
-            { id: 'family', text: "该死的无理家属", emoji: "👹", color: "bg-red-500", hp: 5 },
-            { id: 'paperwork', text: "该死的病历", emoji: "📝", color: "bg-blue-500", hp: 3 },
-            { id: 'night', text: "该死的大夜班", emoji: "🦇", color: "bg-purple-600", hp: 2 },
-            { id: 'hungry', text: "该死的领导废话", emoji: "🧟", color: "bg-green-500", hp: 1 },
-            { id: 'leader', text: "该死的没完没了", emoji: "🦆", color: "bg-yellow-500", hp: 4 }
+            { id: 'family', text: "无理的家属", emoji: "👹", color: "from-red-600 to-red-900", hp: 1 },
+            { id: 'paperwork', text: "该死的病历", emoji: "📝", color: "from-blue-700 to-indigo-900", hp: 1 },
+            { id: 'night', text: "讨厌的夜班", emoji: "🦇", color: "from-purple-800 to-black", hp: 1 },
+            { id: 'hungry', text: "不爽的同事", emoji: "🧟", color: "from-green-700 to-green-950", hp: 1 },
+            { id: 'leader', text: "领导的废话", emoji: "🦆", color: "from-yellow-600 to-yellow-900", hp: 1 }
         ];
 
         function render() {
             const app = document.getElementById('app');
             let content = '';
-
+            
             if (state.mode === 'welcome') {
                 content = `
                     <div class="flex flex-col items-center justify-center h-screen p-6 text-center">
-                        <div class="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full border-t-8 border-blue-400">
-                            <i data-lucide="stethoscope" class="w-16 h-16 text-blue-500 mx-auto mb-4"></i>
-                            <h1 class="text-2xl font-bold mb-2 text-gray-800">亲爱的，辛苦了</h1>
+                        <div class="bg-white p-8 rounded-3xl shadow-2xl max-w-sm w-full border-t-8 border-blue-500">
+                            <i data-lucide="heart-pulse" class="w-16 h-16 text-blue-500 mx-auto mb-4"></i>
+                            <h1 class="text-2xl font-bold mb-2 text-gray-800">亲爱的小狮子，辛苦了</h1>
                             <p class="text-gray-500 mb-6 italic">“这里没有病人，没有考核，只有我。”</p>
-                            <button onclick="changeMode('vent')" class="w-full bg-blue-500 text-white py-4 rounded-full text-lg font-bold shadow-lg active:scale-95 transition-transform flex items-center justify-center">
-                                进入专属解压空间
+                            <button onclick="changeMode('vent')" class="w-full bg-blue-500 text-white py-4 rounded-full text-lg font-bold shadow-lg active:scale-95 transition-transform">
+                                开启“切碎烦恼”模式
                             </button>
                         </div>
                     </div>
                 `;
             } else if (state.mode === 'vent') {
                 content = `
-                    <div class="h-screen bg-gray-900 text-white flex flex-col relative overflow-hidden">
-                        <div class="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700 z-50 shadow-md">
-                            <div class="font-bold text-yellow-400 flex items-center">
-                                <i data-lucide="zap" class="w-4 h-4 mr-1"></i> 战绩: ${state.score}
+                    <div class="h-screen bg-black text-white flex flex-col relative overflow-hidden" 
+                         onmousemove="handleSlash(event)" ontouchmove="handleSlash(event)">
+                        <div class="flex justify-between items-center p-4 bg-gray-900 border-b border-gray-800 z-50">
+                            <div class="font-bold text-yellow-500 flex items-center tracking-tighter">
+                                <i data-lucide="sword" class="w-4 h-4 mr-2"></i> 斩断烦恼: ${state.score}
                             </div>
-                            <button onclick="changeMode('calm')" class="bg-green-600 px-4 py-2 rounded-full text-sm font-bold shadow-md">消气了 &rarr;</button>
+                            <button onclick="changeMode('calm')" class="bg-green-600 px-4 py-1.5 rounded-full text-xs font-bold shadow-md">消气了 &rarr;</button>
                         </div>
-
-                        <div id="arena" class="flex-1 relative">
-                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex items-center justify-center text-gray-500 text-center px-10 italic">点击下方召唤烦恼，然后狠狠点击它们！</div>' : ''}
+                        
+                        <div id="arena" class="flex-1 relative overflow-hidden">
+                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-center px-10 italic"><p class="text-3xl mb-2">👋</p><p>滑动屏幕切碎那些讨厌的东西！</p></div>' : ''}
                             ${state.monsters.map(m => `
-                                <div onclick="hitMonster(${m.instanceId})" id="m-${m.instanceId}" class="absolute animate-float cursor-pointer" style="left: ${m.x}%; top: ${m.y}%;">
-                                    <div class="w-20 h-20 rounded-full ${m.color} flex items-center justify-center text-4xl shadow-2xl border-4 border-white/20 relative active:scale-90 transition-transform">
-                                        <div class="absolute -top-4 left-0 w-full bg-gray-700 h-2 rounded-full overflow-hidden border border-white/10">
-                                            <div class="h-full bg-green-400" style="width: ${(m.hp/m.maxHp)*100}%"></div>
+                                <div id="m-${m.instanceId}" class="absolute animate-float transition-all duration-300" 
+                                     style="left: ${m.x}%; top: ${m.y}%;">
+                                    <div class="w-24 h-24 rounded-full bg-gradient-to-br ${m.color} monster-vibe flex items-center justify-center text-4xl relative">
+                                        <!-- 愤怒符号装饰 -->
+                                        <div class="absolute -top-2 -right-2 text-red-500 text-xl font-black">💢</div>
+                                        <div class="absolute -bottom-1 -left-1 text-gray-400 text-lg">☠️</div>
+                                        
+                                        <span class="z-10">${m.emoji}</span>
+                                        
+                                        <!-- 被人唾弃的名字标签 -->
+                                        <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-red-900/80 text-white text-[10px] px-2 py-0.5 rounded border border-red-500/30 whitespace-nowrap shadow-lg">
+                                            滚远点: ${m.text}
                                         </div>
-                                        ${m.emoji}
-                                        <div class="absolute -bottom-6 text-[10px] bg-black/50 px-2 py-0.5 rounded-full whitespace-nowrap font-bold">${m.text}</div>
                                     </div>
                                 </div>
                             `).join('')}
                         </div>
 
-                        <div class="bg-gray-800 p-4 pb-10 z-50 shadow-2xl">
-                            <div class="text-[10px] text-gray-400 mb-2 uppercase tracking-widest font-bold">召唤烦恼源</div>
+                        <div class="bg-gray-950 p-4 pb-10 z-50">
+                            <div class="text-[9px] text-gray-500 mb-2 uppercase tracking-[0.2em] font-black">召唤那些令人厌恶的...</div>
                             <div class="flex gap-3 overflow-x-auto no-scrollbar pb-2">
                                 ${MONSTER_TYPES.map(t => `
-                                    <button onclick="spawnMonster('${t.id}')" class="flex-shrink-0 w-20 h-24 bg-gray-700 rounded-2xl flex flex-col items-center justify-center border-2 border-gray-600 active:border-blue-400 active:bg-gray-600 shadow-lg transition-colors">
-                                        <span class="text-3xl">${t.emoji}</span>
-                                        <span class="text-xs mt-1 font-bold text-gray-200">${t.text}</span>
+                                    <button onclick="spawnMonster('${t.id}')" class="flex-shrink-0 w-20 h-24 bg-gray-900 rounded-2xl flex flex-col items-center justify-center border-2 border-gray-800 active:border-red-600 active:scale-95 transition-all">
+                                        <span class="text-3xl filter grayscale hover:grayscale-0 transition-all">${t.emoji}</span>
+                                        <span class="text-[10px] mt-2 font-bold text-gray-400">${t.text}</span>
                                     </button>
                                 `).join('')}
                             </div>
@@ -121,16 +160,13 @@
             } else if (state.mode === 'calm') {
                 content = `
                     <div class="h-screen bg-green-50 flex flex-col items-center justify-center p-6 text-center">
-                        <h2 class="text-2xl font-bold text-green-800 mb-8">深呼吸... 平复心情</h2>
+                        <h2 class="text-2xl font-bold text-green-800 mb-8 tracking-tight">平复呼吸，它们都消失了</h2>
                         <div id="breath-circle" class="w-48 h-48 bg-green-200 rounded-full flex items-center justify-center shadow-inner transition-all duration-[4000ms] ease-in-out border-4 border-green-100">
-                            <span id="breath-text" class="text-xl font-bold text-green-800">吸气</span>
+                            <span id="breath-text" class="text-xl font-bold text-green-800">吸气...</span>
                         </div>
-                        <div class="mt-12 space-y-2 text-green-700 font-medium px-4">
-                            <p>刚才的压力已经随着怪兽消散了。</p>
-                            <p>现在，让世界安静四秒钟。</p>
-                        </div>
-                        <button onclick="changeMode('love')" class="mt-12 bg-white text-green-600 px-8 py-3 rounded-full font-bold shadow-md border border-green-200 active:scale-95 transition-transform">
-                            充能完成
+                        <p class="mt-12 text-green-700 font-medium">坏情绪已被斩断。现在，只有平静的你。</p>
+                        <button onclick="changeMode('love')" class="mt-12 bg-white text-green-600 px-8 py-3 rounded-full font-bold shadow-md border border-green-200 active:scale-95">
+                            继续 &rarr;
                         </button>
                     </div>
                 `;
@@ -138,24 +174,24 @@
             } else if (state.mode === 'love') {
                 content = `
                     <div class="h-screen bg-pink-50 flex flex-col items-center justify-center p-6">
-                        <div class="bg-white p-8 rounded-[2rem] shadow-2xl max-w-sm w-full text-center relative border border-pink-100">
+                        <div class="bg-white p-8 rounded-[2.5rem] shadow-2xl max-w-sm w-full text-center relative border border-pink-100">
                             <div class="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-red-500 text-white p-4 rounded-full shadow-lg">
                                 <i data-lucide="heart" class="w-8 h-8 fill-current"></i>
                             </div>
-                            <h2 class="text-2xl font-bold mb-6 mt-4 text-gray-800 font-sans">超级医生，辛苦了！</h2>
+                            <h2 class="text-2xl font-bold mb-6 mt-4 text-gray-800">最棒的小狮子，辛苦了</h2>
                             <div class="text-left space-y-4 mb-8">
-                                <div class="bg-pink-50 p-4 rounded-2xl border-l-4 border-pink-400 shadow-sm">
-                                    <p class="text-xs text-pink-600 font-bold mb-1 uppercase tracking-wider">To My Hero:</p>
-                                    <p class="text-sm text-gray-700 leading-relaxed font-medium">你守护病人，我守护你。不管今天多累，回到家我就是你的专属充电宝。</p>
-                                </div>
-                                <div class="bg-blue-50 p-4 rounded-2xl border-l-4 border-blue-400 shadow-sm">
-                                    <p class="text-xs text-blue-600 font-bold mb-1 uppercase tracking-wider">Today's Menu:</p>
-                                    <p class="text-sm text-gray-700 leading-relaxed font-medium">家务归我，怀抱归你。晚饭已经准备好了，就等你回家。</p>
+                                <div class="bg-pink-50 p-4 rounded-2xl border-l-4 border-pink-400">
+                                    <p class="text-sm text-gray-700 leading-relaxed font-medium">所有的烦恼都被你切碎了！现在，请接受这个特别的礼物。</p>
                                 </div>
                             </div>
-                            <button onclick="handleClaim()" class="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-pink-200 active:scale-95 transition-all">
-                                领取「超大号拥抱」
-                            </button>
+                            <div class="space-y-3">
+                                <button onclick="handleClaim()" class="w-full bg-gradient-to-r from-red-500 to-pink-500 text-white py-4 rounded-2xl font-bold shadow-lg shadow-pink-200 active:scale-95 transition-all">
+                                    领取「超大号拥抱」
+                                </button>
+                                <button onclick="changeMode('welcome')" class="w-full bg-gray-100 text-gray-500 py-3 rounded-2xl font-bold hover:bg-gray-200 active:scale-95 transition-all text-sm">
+                                    再来一次
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
@@ -163,11 +199,47 @@
 
             app.innerHTML = content;
             app.style.opacity = 1;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
+        }
 
-            // 确保图标库加载后初始化图标
-            if (typeof lucide !== 'undefined') {
-                lucide.createIcons();
-            }
+        function handleSlash(e) {
+            if (state.mode !== 'vent') return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            if (!clientX || !clientY) return;
+
+            // 创建视觉上的划痕效果
+            createSlashGraphic(clientX, clientY);
+
+            // 碰撞检测：检查是否“切到”了怪物
+            state.monsters.forEach(m => {
+                const el = document.getElementById(`m-${m.instanceId}`);
+                if (!el) return;
+                const rect = el.getBoundingClientRect();
+                const monsterCenterX = rect.left + rect.width / 2;
+                const monsterCenterY = rect.top + rect.height / 2;
+                
+                const dist = Math.sqrt(Math.pow(clientX - monsterCenterX, 2) + Math.pow(clientY - monsterCenterY, 2));
+                
+                if (dist < 60) { // 切中范围
+                    hitMonster(m.instanceId);
+                }
+            });
+        }
+
+        function createSlashGraphic(x, y) {
+            const arena = document.getElementById('arena');
+            if (!arena) return;
+            
+            const slash = document.createElement('div');
+            slash.className = 'slash-effect';
+            slash.style.left = x + 'px';
+            slash.style.top = y + 'px';
+            slash.style.transform = `rotate(${Math.random() * 360}deg)`;
+            arena.appendChild(slash);
+            setTimeout(() => slash.remove(), 300);
         }
 
         function changeMode(m) {
@@ -176,6 +248,10 @@
             app.style.opacity = 0;
             setTimeout(() => {
                 state.mode = m;
+                if(m === 'welcome') {
+                    state.score = 0;
+                    state.monsters = [];
+                }
                 render();
             }, 300);
         }
@@ -185,26 +261,28 @@
             const monster = {
                 ...type,
                 instanceId: Date.now() + Math.random(),
-                maxHp: type.hp,
-                x: 10 + Math.random() * 65,
-                y: 10 + Math.random() * 55
+                x: 15 + Math.random() * 60,
+                y: 15 + Math.random() * 50
             };
             state.monsters.push(monster);
             render();
-            if(window.navigator.vibrate) window.navigator.vibrate(20);
+            if(window.navigator.vibrate) window.navigator.vibrate(15);
         }
 
         function hitMonster(id) {
             const mIndex = state.monsters.findIndex(m => m.instanceId === id);
             if (mIndex !== -1) {
-                state.monsters[mIndex].hp -= 1;
-                if(window.navigator.vibrate) window.navigator.vibrate(50);
-
-                if (state.monsters[mIndex].hp <= 0) {
+                const el = document.getElementById(`m-${id}`);
+                if (el && !el.classList.contains('monster-cut')) {
+                    el.classList.add('monster-cut');
                     state.score += 10;
-                    state.monsters.splice(mIndex, 1);
+                    if(window.navigator.vibrate) window.navigator.vibrate(40);
+                    
+                    setTimeout(() => {
+                        state.monsters = state.monsters.filter(item => item.instanceId !== id);
+                        render();
+                    }, 400);
                 }
-                render();
             }
         }
 
@@ -215,14 +293,11 @@
                 const circle = document.getElementById('breath-circle');
                 const text = document.getElementById('breath-text');
                 if(!circle || !text) return;
-
                 if (step % 2 === 0) {
                     circle.style.transform = 'scale(1.4)';
-                    circle.style.backgroundColor = '#dcfce7';
                     text.innerText = '吸气...';
                 } else {
                     circle.style.transform = 'scale(1)';
-                    circle.style.backgroundColor = '#bbf7d0';
                     text.innerText = '呼气...';
                 }
                 step++;
@@ -233,19 +308,18 @@
 
         function handleClaim() {
             const overlay = document.createElement('div');
-            overlay.className = "fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-6";
+            overlay.className = "fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-6";
             overlay.innerHTML = `
-                <div class="bg-white rounded-3xl p-8 text-center shadow-2xl max-w-xs animate-float">
-                    <div class="text-5xl mb-4">✨</div>
-                    <h3 class="text-xl font-bold mb-2">兑换成功！</h3>
-                    <p class="text-gray-500 text-sm mb-6">请放下手机，立刻向身边的男朋友索要一个超级大的拥抱！</p>
-                    <button onclick="this.parentElement.parentElement.remove()" class="bg-gray-900 text-white px-8 py-2 rounded-full font-bold shadow-lg">知道啦</button>
+                <div class="bg-white rounded-3xl p-8 text-center shadow-2xl max-w-xs scale-in">
+                    <div class="text-6xl mb-4 animate-bounce">🧧</div>
+                    <h3 class="text-xl font-bold mb-2 text-gray-800">兑换成功！</h3>
+                    <p class="text-gray-500 text-sm mb-6">此券长期有效：凭此页可随时某某人索要超级大的拥抱一个！</p>
+                    <button onclick="this.parentElement.parentElement.remove()" class="bg-red-500 text-white px-10 py-3 rounded-full font-bold shadow-lg">好哒</button>
                 </div>
             `;
             document.body.appendChild(overlay);
         }
 
-        // 初始化运行
         window.onload = render;
     </script>
 </body>
