@@ -73,11 +73,24 @@
             transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* 文字容器限制，防止超出屏幕 */
-        .label-container {
-            max-width: 80px;
-            word-wrap: break-word;
+        /* 标签容器优化：解决长文本显示问题 */
+        .monster-label {
+            position: absolute;
+            bottom: -32px; /* 稍微拉开距离 */
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(127, 29, 29, 0.85); /* 深红背景 */
+            color: white;
+            font-size: 8px; /* 进一步缩小字体 */
+            line-height: 1.1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            white-space: normal; /* 允许折行 */
+            width: 70px; /* 限制最大宽度 */
             text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            pointer-events: none;
         }
     </style>
 </head>
@@ -89,7 +102,7 @@
     </div>
 
     <script>
-        // 音效系统 (使用 Base64 数据或简单的 Web Audio API 生成)
+        // 音效系统
         const AudioCtx = window.AudioContext || window.webkitAudioContext;
         let ctx;
 
@@ -134,11 +147,11 @@
 
         const MONSTER_TYPES = [
             { id: 'infinite', text: "该死的没完没了", emoji: "🌀", color: "from-gray-800 to-black", hp: 3 },
-            { id: 'family', text: "该死的无理家属", emoji: "👹", color: "from-red-600 to-red-900", hp: 3 },
-            { id: 'paperwork', text: "该死的病历", emoji: "📝", color: "from-blue-700 to-indigo-900", hp: 3 },
-            { id: 'night', text: "该死的夜班", emoji: "🦇", color: "from-purple-800 to-black", hp: 3 },
-            { id: 'hungry', text: "该死的同事", emoji: "🧟", color: "from-green-700 to-green-950", hp: 3 },
-            { id: 'leader', text: "该死的领导废话", emoji: "🦆", color: "from-yellow-600 to-yellow-900", hp: 3 }
+            { id: 'family', text: "无理取闹家属", emoji: "👹", color: "from-red-600 to-red-900", hp: 3 },
+            { id: 'paperwork', text: "堆成山乱病历", emoji: "📝", color: "from-blue-700 to-indigo-900", hp: 3 },
+            { id: 'night', text: "熬人的大夜班", emoji: "🦇", color: "from-purple-800 to-black", hp: 3 },
+            { id: 'hungry', text: "背后捅刀同事", emoji: "🧟", color: "from-green-700 to-green-950", hp: 3 },
+            { id: 'leader', text: "领导虚伪废话", emoji: "🦆", color: "from-yellow-600 to-yellow-900", hp: 3 }
         ];
 
         function render() {
@@ -170,18 +183,19 @@
                         </div>
                         
                         <div id="arena" class="flex-1 relative overflow-hidden">
-                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-center px-10 italic"><p class="text-3xl mb-2">👋</p><p class="text-sm">选下面的源头,切碎它们！</p></div>' : ''}
+                            ${state.monsters.length === 0 ? '<div class="absolute inset-0 flex flex-col items-center justify-center text-gray-700 text-center px-10 italic"><p class="text-3xl mb-2">👋</p><p class="text-sm">选中下面的讨厌项,然后切碎它们！</p></div>' : ''}
                             ${state.monsters.map(m => `
                                 <div id="m-${m.instanceId}" class="absolute animate-float" 
                                      style="left: ${m.x}%; top: ${m.y}%; transform-origin: center;">
                                     <div class="w-20 h-20 rounded-full bg-gradient-to-br ${m.color} monster-vibe flex items-center justify-center text-3xl relative">
                                         <div class="absolute -top-1 -right-1 text-red-500 text-lg font-black">💢</div>
                                         <span class="z-10">${m.emoji}</span>
-                                        <!-- 血条/耐久度 -->
+                                        <!-- 血条 -->
                                         <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-10 h-1 bg-gray-800 rounded-full overflow-hidden">
                                             <div class="h-full bg-red-500 transition-all" style="width: ${(m.hp/3)*100}%"></div>
                                         </div>
-                                        <div class="absolute -bottom-8 left-1/2 -translate-x-1/2 bg-red-900/80 text-white text-[9px] px-2 py-0.5 rounded border border-red-500/30 whitespace-nowrap shadow-lg">
+                                        <!-- 优化的标签内容 -->
+                                        <div class="monster-label">
                                             ${m.text}
                                         </div>
                                     </div>
@@ -195,7 +209,7 @@
                                 ${MONSTER_TYPES.map(t => `
                                     <button onclick="spawnMonster('${t.id}')" class="flex-shrink-0 w-16 h-20 bg-gray-900 rounded-xl flex flex-col items-center justify-center border-2 border-gray-800 active:border-red-600 active:scale-95 transition-all">
                                         <span class="text-2xl">${t.emoji}</span>
-                                        <span class="text-[8px] mt-1 font-bold text-gray-500">${t.text}</span>
+                                        <span class="text-[8px] mt-1 font-bold text-gray-500 leading-tight text-center px-1">${t.text}</span>
                                     </button>
                                 `).join('')}
                             </div>
@@ -294,12 +308,11 @@
         function spawnMonster(typeId) {
             playSound('btn');
             const type = MONSTER_TYPES.find(t => t.id === typeId);
-            // 确保生成位置不超出屏幕边缘
             const monster = {
                 ...type,
                 instanceId: Date.now() + Math.random(),
-                x: 10 + Math.random() * 60,
-                y: 10 + Math.random() * 60,
+                x: 10 + Math.random() * 65,
+                y: 10 + Math.random() * 55,
                 hp: 3
             };
             state.monsters.push(monster);
@@ -317,7 +330,6 @@
             m.hp -= 1;
             playSound('hit');
             
-            // 被击中时的缩放反馈
             el.style.transform = 'scale(0.8)';
             setTimeout(() => { if(el) el.style.transform = 'scale(1)'; }, 100);
 
@@ -331,7 +343,6 @@
                     render();
                 }, 400);
             } else {
-                // 更新局部血条 UI
                 const bar = el.querySelector('.bg-red-500');
                 if(bar) bar.style.width = `${(m.hp/3)*100}%`;
             }
