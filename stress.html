@@ -1,0 +1,1755 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>医护减压切切乐 - 真实切割效果</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background: linear-gradient(135deg, #0c2461 0%, #1e3799 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        .container {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 游戏标题区域 */
+        .game-header {
+            padding: 15px 20px;
+            background: rgba(0, 0, 0, 0.4);
+            text-align: center;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        h1 {
+            font-family: 'Ma Shan Zheng', cursive;
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+            color: #feca57;
+            text-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .heartbeat {
+            animation: heartbeat 1.5s infinite;
+            color: #ff6b8b;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.15); }
+        }
+
+        .subtitle {
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.85);
+            margin-bottom: 10px;
+            font-weight: 300;
+        }
+
+        /* 游戏信息面板 */
+        .game-info {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 12px 15px;
+            border-radius: 15px;
+            margin: 0 auto;
+            width: 95%;
+            max-width: 700px;
+            border: 2px solid rgba(254, 202, 87, 0.3);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-item {
+            text-align: center;
+            padding: 5px;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #a29bfe;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 2rem;
+            font-weight: 900;
+            color: #feca57;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+        }
+
+        /* 游戏区域 */
+        .game-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="50" height="50" viewBox="0 0 50 50"><circle cx="25" cy="25" r="20" fill="%23feca57" opacity="0.8"/><circle cx="25" cy="25" r="8" fill="%23ff6b8b"/><path d="M25,5 L25,45 M5,25 L45,25" stroke="%23ffffff" stroke-width="3" opacity="0.7"/></svg>') 25 25, auto;
+        }
+
+        /* 游戏物品 - 美观大图标 */
+        .game-item {
+            position: absolute;
+            cursor: pointer;
+            user-select: none;
+            z-index: 5;
+            filter: drop-shadow(0 8px 15px rgba(0, 0, 0, 0.4));
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            overflow: hidden;
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            box-sizing: border-box;
+            transition: transform 0.1s;
+            will-change: transform;
+        }
+
+        /* 图标容器 */
+        .item-icon {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 8px;
+            font-size: 3.8rem;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s;
+        }
+
+        .item-label {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            max-width: 120px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* 切割后的两半效果 */
+        .item-half {
+            position: absolute;
+            width: 140px;
+            height: 140px;
+            overflow: hidden;
+            z-index: 6;
+            filter: drop-shadow(0 8px 15px rgba(0, 0, 0, 0.4));
+            border: 4px solid rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .half-left {
+            clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+        }
+
+        .half-right {
+            clip-path: polygon(50% 0, 100% 0, 100% 100%, 50% 100%);
+        }
+
+        .half-content {
+            position: absolute;
+            width: 280px;
+            height: 140px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .half-emoji {
+            font-size: 3.8rem;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+        }
+
+        .half-label {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            text-shadow: 1px 1px 5px rgba(0, 0, 0, 0.7);
+            position: absolute;
+            bottom: 15px;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(0, 0, 0, 0.4);
+            white-space: nowrap;
+        }
+
+        /* 切割轨迹效果 */
+        .trail {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(254, 202, 87, 0.9) 0%, rgba(255, 107, 139, 0.7) 100%);
+            pointer-events: none;
+            z-index: 100;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(254, 202, 87, 0.8);
+        }
+
+        /* 切割线效果 */
+        .cut-line {
+            position: absolute;
+            height: 4px;
+            background: linear-gradient(90deg, transparent, #feca57, #ff6b8b, #feca57, transparent);
+            border-radius: 2px;
+            pointer-events: none;
+            z-index: 99;
+            transform-origin: left center;
+            box-shadow: 0 0 15px rgba(254, 202, 87, 0.9);
+        }
+
+        /* 果汁喷溅效果 */
+        .juice-particle {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 7;
+        }
+
+        /* 分数增加动画 */
+        .score-popup {
+            position: absolute;
+            color: #feca57;
+            font-size: 2.2rem;
+            font-weight: 900;
+            text-shadow: 0 3px 8px rgba(0, 0, 0, 0.8);
+            pointer-events: none;
+            z-index: 95;
+            animation: scorePopup 1.2s forwards;
+        }
+
+        @keyframes scorePopup {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(-80px) scale(1.8); opacity: 0; }
+        }
+
+        /* 连击效果 */
+        .combo-display {
+            position: absolute;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, rgba(255, 107, 139, 0.9), rgba(254, 202, 87, 0.9));
+            padding: 15px 30px;
+            border-radius: 50px;
+            border: 3px solid white;
+            color: white;
+            font-size: 2rem;
+            font-weight: 900;
+            text-align: center;
+            z-index: 90;
+            opacity: 0;
+            transition: opacity 0.3s;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .combo-display.active {
+            opacity: 1;
+        }
+
+        /* 游戏控制区域 */
+        .game-controls {
+            padding: 18px 20px;
+            background: rgba(0, 0, 0, 0.4);
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            border-top: 2px solid rgba(255, 255, 255, 0.1);
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #ff6b8b, #ff4757);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.3rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 6px 20px rgba(255, 107, 139, 0.5);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 25px rgba(255, 107, 139, 0.7);
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-start {
+            background: linear-gradient(135deg, #2ed573, #1dd1a1);
+            box-shadow: 0 6px 20px rgba(46, 213, 115, 0.5);
+        }
+
+        .btn-pause {
+            background: linear-gradient(135deg, #ffa502, #ff9f1a);
+            box-shadow: 0 6px 20px rgba(255, 165, 2, 0.5);
+        }
+
+        .btn-reset {
+            background: linear-gradient(135deg, #3742fa, #5352ed);
+            box-shadow: 0 6px 20px rgba(55, 66, 250, 0.5);
+        }
+
+        /* 游戏结束弹窗 */
+        .game-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s;
+        }
+
+        .game-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .game-modal {
+            background: linear-gradient(135deg, #1e3799, #0c2461);
+            border-radius: 25px;
+            padding: 40px;
+            width: 90%;
+            max-width: 600px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+            transform: scale(0.8);
+            transition: transform 0.5s;
+            border: 4px solid #feca57;
+        }
+
+        .game-overlay.active .game-modal {
+            transform: scale(1);
+        }
+
+        .modal-title {
+            font-size: 3rem;
+            color: #feca57;
+            margin-bottom: 25px;
+            font-family: 'Ma Shan Zheng', cursive;
+            text-shadow: 0 3px 8px rgba(0, 0, 0, 0.7);
+        }
+
+        .modal-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 25px;
+            margin-bottom: 35px;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 25px;
+            border: 3px solid rgba(254, 202, 87, 0.4);
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #feca57;
+            margin-bottom: 5px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.7);
+        }
+
+        .stat-label {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+            font-weight: 500;
+        }
+
+        /* 游戏说明 */
+        .instructions {
+            position: absolute;
+            bottom: 120px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 1.3rem;
+            padding: 0 20px;
+            z-index: 5;
+            background: rgba(0, 0, 0, 0.5);
+            margin: 0 auto;
+            width: fit-content;
+            padding: 15px 25px;
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(254, 202, 87, 0.3);
+            font-weight: 500;
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+
+            .game-info {
+                padding: 10px 12px;
+                width: 98%;
+                gap: 8px;
+            }
+
+            .info-value {
+                font-size: 1.8rem;
+            }
+
+            .game-item, .item-half {
+                width: 120px;
+                height: 120px;
+            }
+
+            .item-icon, .half-emoji {
+                font-size: 3.2rem;
+            }
+
+            .item-label, .half-label {
+                font-size: 1.1rem;
+                max-width: 110px;
+            }
+
+            .btn {
+                padding: 12px 22px;
+                font-size: 1.1rem;
+            }
+
+            .modal-title {
+                font-size: 2.5rem;
+            }
+
+            .stat-value {
+                font-size: 2.5rem;
+            }
+
+            .instructions {
+                font-size: 1.1rem;
+                bottom: 110px;
+                padding: 12px 20px;
+            }
+
+            .score-popup {
+                font-size: 1.8rem;
+            }
+
+            .combo-display {
+                font-size: 1.7rem;
+                padding: 12px 25px;
+                top: 100px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .game-info {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 15px;
+            }
+
+            .game-controls {
+                flex-direction: column;
+                gap: 12px;
+                align-items: center;
+            }
+
+            .btn {
+                width: 90%;
+                max-width: 300px;
+            }
+
+            .modal-stats {
+                grid-template-columns: 1fr;
+            }
+
+            .game-item, .item-half {
+                width: 110px;
+                height: 110px;
+            }
+
+            .item-icon, .half-emoji {
+                font-size: 2.8rem;
+            }
+
+            .item-label, .half-label {
+                font-size: 1rem;
+                max-width: 100px;
+            }
+        }
+
+        /* 背景装饰 */
+        .bg-decoration {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .bg-element {
+            position: absolute;
+            font-size: 2.5rem;
+            opacity: 0.1;
+            animation: float 25s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); }
+            100% { transform: translateY(-100px) rotate(360deg); }
+        }
+
+        /* 难度指示器 */
+        .difficulty {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 18px;
+            border-radius: 25px;
+            font-size: 1rem;
+            color: #feca57;
+            z-index: 10;
+            border: 2px solid rgba(254, 202, 87, 0.3);
+            font-weight: 600;
+        }
+
+        /* 进度条 */
+        .time-progress {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            z-index: 10;
+        }
+
+        .time-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #2ed573, #feca57, #ff6b8b);
+            width: 100%;
+            transition: width 1s linear;
+        }
+
+        /* 游戏开始倒计时 */
+        .countdown {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            font-size: 10rem;
+            color: #feca57;
+            font-weight: 900;
+            text-shadow: 0 5px 20px rgba(254, 202, 87, 0.8);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .countdown.active {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 游戏标题区域 -->
+        <header class="game-header">
+            <h1><i class="fas fa-heartbeat heartbeat"></i> 医护减压切切乐 <i class="fas fa-heartbeat heartbeat"></i></h1>
+            <p class="subtitle">将工作中的压力一切两半，释放心情，轻松上阵！</p>
+
+            <div class="game-info">
+                <div class="info-item">
+                    <div class="info-label">减压分数</div>
+                    <div id="score" class="info-value">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">剩余时间</div>
+                    <div id="timer" class="info-value">30</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">连击次数</div>
+                    <div id="combo" class="info-value">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">切割数量</div>
+                    <div id="cuts" class="info-value">0</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 游戏区域 -->
+        <div class="game-area" id="game-area">
+            <!-- 游戏物品会动态添加到这里 -->
+            <div class="combo-display" id="combo-display">连击 x<span id="combo-count">0</span></div>
+
+            <!-- 难度指示器 -->
+            <div class="difficulty" id="difficulty">难度: 普通</div>
+
+            <!-- 背景装饰 -->
+            <div class="bg-decoration" id="bg-decoration"></div>
+        </div>
+
+        <!-- 时间进度条 -->
+        <div class="time-progress">
+            <div class="time-bar" id="time-bar"></div>
+        </div>
+
+        <!-- 游戏控制区域 -->
+        <div class="game-controls">
+            <button id="start-btn" class="btn btn-start"><i class="fas fa-play-circle"></i> 开始减压</button>
+            <button id="pause-btn" class="btn btn-pause"><i class="fas fa-pause-circle"></i> 暂停游戏</button>
+            <button id="reset-btn" class="btn btn-reset"><i class="fas fa-redo-alt"></i> 重新开始</button>
+        </div>
+
+        <!-- 游戏说明 -->
+        <div class="instructions">
+            <i class="fas fa-mouse-pointer"></i> 用鼠标/手指切割压力图标 |
+            <i class="fas fa-bolt"></i> 快速连击获得高分 |
+            <i class="fas fa-clock"></i> 时间: 30秒
+        </div>
+    </div>
+
+    <!-- 游戏开始倒计时 -->
+    <div class="countdown" id="countdown">3</div>
+
+    <!-- 游戏结束弹窗 -->
+    <div class="game-overlay" id="game-overlay">
+        <div class="game-modal">
+            <h2 class="modal-title" id="game-result">减压完成!</h2>
+            <div class="modal-stats">
+                <div class="stat-box">
+                    <div class="stat-value" id="final-score">0</div>
+                    <div class="stat-label">减压分数</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="final-cuts">0</div>
+                    <div class="stat-label">切割数量</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="final-combo">0</div>
+                    <div class="stat-label">最高连击</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-value" id="final-time">0s</div>
+                    <div class="stat-label">剩余时间</div>
+                </div>
+            </div>
+
+            <div style="margin: 25px 0; color: rgba(255, 255, 255, 0.9); font-size: 1.2rem; line-height: 1.6;">
+                <p>亲爱的白衣天使，你已成功释放了 <span style="color:#feca57; font-weight:bold;" id="stress-released">0</span> 个压力源！</p>
+                <p>感谢你的辛勤付出，请记得照顾好自己的身心健康！</p>
+            </div>
+
+            <button id="play-again-btn" class="btn btn-start" style="font-size: 1.5rem; padding: 18px 40px; margin-top: 15px;">
+                <i class="fas fa-redo-alt"></i> 再减压一次
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // 游戏变量
+        let gameScore = 0;
+        let gameTime = 30;
+        let totalTime = 30;
+        let gameActive = false;
+        let gameTimer = null;
+        let itemSpawnTimer = null;
+        let items = [];
+        let cutCount = 0;
+        let currentCombo = 0;
+        let maxCombo = 0;
+        let lastCutTime = 0;
+        let comboTimeout = null;
+        let difficulty = 1; // 1:普通, 2:困难
+        let mouseX = 0;
+        let mouseY = 0;
+        let trails = [];
+        let trailTimer = null;
+        let cutLines = [];
+        let cutLineTimer = null;
+        let lastCutPoint = null;
+
+        // DOM元素
+        const gameArea = document.getElementById('game-area');
+        const scoreEl = document.getElementById('score');
+        const timerEl = document.getElementById('timer');
+        const comboEl = document.getElementById('combo');
+        const cutsEl = document.getElementById('cuts');
+        const startBtn = document.getElementById('start-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const gameOverlay = document.getElementById('game-overlay');
+        const finalScoreEl = document.getElementById('final-score');
+        const finalCutsEl = document.getElementById('final-cuts');
+        const finalComboEl = document.getElementById('final-combo');
+        const finalTimeEl = document.getElementById('final-time');
+        const stressReleasedEl = document.getElementById('stress-released');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const comboDisplay = document.getElementById('combo-display');
+        const comboCountEl = document.getElementById('combo-count');
+        const difficultyEl = document.getElementById('difficulty');
+        const bgDecoration = document.getElementById('bg-decoration');
+        const timeBar = document.getElementById('time-bar');
+        const countdownEl = document.getElementById('countdown');
+
+        // 游戏物品数据 - 美观大图标 + 中文压力词
+        const gameItems = [
+            {
+                emoji: "😠",
+                name: "愤怒患者",
+                score: 100,
+                bgColor: "radial-gradient(circle, #ff6b8b, #ff4757)",
+                borderColor: "#ff6b8b",
+                juiceColor: "#ff6b8b",
+                speed: 2.5
+            },
+            {
+                emoji: "😫",
+                name: "加班疲惫",
+                score: 150,
+                bgColor: "radial-gradient(circle, #74b9ff, #0984e3)",
+                borderColor: "#74b9ff",
+                juiceColor: "#74b9ff",
+                speed: 2.2
+            },
+            {
+                emoji: "📋",
+                name: "病历堆积",
+                score: 120,
+                bgColor: "radial-gradient(circle, #6c5ce7, #4834d4)",
+                borderColor: "#6c5ce7",
+                juiceColor: "#6c5ce7",
+                speed: 1.8
+            },
+            {
+                emoji: "💉",
+                name: "打针压力",
+                score: 180,
+                bgColor: "radial-gradient(circle, #00b894, #00a085)",
+                borderColor: "#00b894",
+                juiceColor: "#00b894",
+                speed: 3.0
+            },
+            {
+                emoji: "🌙",
+                name: "夜班辛苦",
+                score: 200,
+                bgColor: "radial-gradient(circle, #fdcb6e, #f9ca24)",
+                borderColor: "#fdcb6e",
+                juiceColor: "#fdcb6e",
+                speed: 2.5
+            },
+            {
+                emoji: "⚖️",
+                name: "医患纠纷",
+                score: 250,
+                bgColor: "radial-gradient(circle, #e17055, #d63031)",
+                borderColor: "#e17055",
+                juiceColor: "#e17055",
+                speed: 3.2
+            },
+            {
+                emoji: "😔",
+                name: "委屈情绪",
+                score: 130,
+                bgColor: "radial-gradient(circle, #a29bfe, #6c5ce7)",
+                borderColor: "#a29bfe",
+                juiceColor: "#a29bfe",
+                speed: 2.0
+            },
+            {
+                emoji: "⏰",
+                name: "时间紧迫",
+                score: 160,
+                bgColor: "radial-gradient(circle, #fd79a8, #e84393)",
+                borderColor: "#fd79a8",
+                juiceColor: "#fd79a8",
+                speed: 3.5
+            },
+            {
+                emoji: "🏃",
+                name: "忙碌奔波",
+                score: 140,
+                bgColor: "radial-gradient(circle, #55efc4, #00b894)",
+                borderColor: "#55efc4",
+                juiceColor: "#55efc4",
+                speed: 3.8
+            },
+            {
+                emoji: "💊",
+                name: "药物管理",
+                score: 110,
+                bgColor: "radial-gradient(circle, #ffeaa7, #fdcb6e)",
+                borderColor: "#ffeaa7",
+                juiceColor: "#ffeaa7",
+                speed: 2.7
+            },
+            {
+                emoji: "😰",
+                name: "急诊压力",
+                score: 220,
+                bgColor: "radial-gradient(circle, #fd9644, #fa8231)",
+                borderColor: "#fd9644",
+                juiceColor: "#fd9644",
+                speed: 3.3
+            },
+            {
+                emoji: "🤯",
+                name: "精神压力",
+                score: 190,
+                bgColor: "radial-gradient(circle, #a55eea, #8854d0)",
+                borderColor: "#a55eea",
+                juiceColor: "#a55eea",
+                speed: 2.9
+            }
+        ];
+
+        // 背景装饰元素
+        const bgEmojis = ["⚕️", "🏥", "💗", "❤️", "🩺", "🌡️", "🩹", "💉", "👨‍⚕️", "👩‍⚕️"];
+
+        // 创建背景装饰元素
+        function createBackgroundElements() {
+            bgDecoration.innerHTML = '';
+            for (let i = 0; i < 25; i++) {
+                const element = document.createElement('div');
+                element.className = 'bg-element';
+                element.textContent = bgEmojis[Math.floor(Math.random() * bgEmojis.length)];
+                element.style.left = `${Math.random() * 100}%`;
+                element.style.animationDelay = `${Math.random() * 20}s`;
+                element.style.fontSize = `${Math.random() * 30 + 20}px`;
+                element.style.color = `rgba(255, 255, 255, ${Math.random() * 0.1 + 0.05})`;
+                bgDecoration.appendChild(element);
+            }
+        }
+
+        // 初始化游戏
+        function initGame() {
+            gameScore = 0;
+            gameTime = 30;
+            totalTime = 30;
+            cutCount = 0;
+            currentCombo = 0;
+            maxCombo = 0;
+            difficulty = 1;
+            lastCutPoint = null;
+
+            // 清空物品
+            items.forEach(item => {
+                if (item.element && item.element.parentNode) {
+                    item.element.parentNode.removeChild(item.element);
+                }
+            });
+            items = [];
+
+            // 清空轨迹
+            trails.forEach(trail => {
+                if (trail.element && trail.element.parentNode) {
+                    trail.element.parentNode.removeChild(trail.element);
+                }
+            });
+            trails = [];
+
+            // 清空切割线
+            cutLines.forEach(line => {
+                if (line.element && line.element.parentNode) {
+                    line.element.parentNode.removeChild(line.element);
+                }
+            });
+            cutLines = [];
+
+            // 更新UI
+            updateUI();
+            timeBar.style.width = '100%';
+
+            // 创建背景元素
+            createBackgroundElements();
+
+            // 隐藏游戏结束弹窗
+            gameOverlay.classList.remove('active');
+
+            // 更新难度显示
+            updateDifficulty();
+        }
+
+        // 开始游戏倒计时
+        function startGameWithCountdown() {
+            if (gameActive) return;
+
+            countdownEl.classList.add('active');
+            startBtn.disabled = true;
+
+            let countdown = 3;
+            countdownEl.textContent = countdown;
+
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    countdownEl.textContent = countdown;
+                } else {
+                    countdownEl.textContent = "开始!";
+                    setTimeout(() => {
+                        countdownEl.classList.remove('active');
+                        startGame();
+                        clearInterval(countdownInterval);
+                    }, 500);
+                }
+            }, 1000);
+        }
+
+        // 开始游戏
+        function startGame() {
+            if (gameActive) return;
+
+            gameActive = true;
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<i class="fas fa-play-circle"></i> 减压中...';
+
+            // 开始游戏计时器
+            gameTimer = setInterval(() => {
+                gameTime--;
+                timerEl.textContent = gameTime;
+
+                // 更新进度条
+                const progressPercent = (gameTime / totalTime) * 100;
+                timeBar.style.width = `${progressPercent}%`;
+
+                // 更新难度
+                if (gameTime <= 20 && gameTime > 10 && difficulty < 2) {
+                    difficulty = 2;
+                    updateDifficulty();
+                } else if (gameTime <= 10 && difficulty < 3) {
+                    difficulty = 3;
+                    updateDifficulty();
+                }
+
+                // 游戏结束
+                if (gameTime <= 0) {
+                    endGame();
+                }
+            }, 1000);
+
+            // 开始生成物品
+            itemSpawnTimer = setInterval(spawnItem, 700 - (difficulty * 150));
+
+            // 开始轨迹效果
+            trailTimer = setInterval(updateTrails, 30);
+
+            // 开始切割线效果
+            cutLineTimer = setInterval(updateCutLines, 30);
+        }
+
+        // 暂停游戏
+        function pauseGame() {
+            if (!gameActive) return;
+
+            gameActive = false;
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="fas fa-play-circle"></i> 继续减压';
+
+            clearInterval(gameTimer);
+            clearInterval(itemSpawnTimer);
+            clearInterval(trailTimer);
+            clearInterval(cutLineTimer);
+        }
+
+        // 生成游戏物品
+        function spawnItem() {
+            if (!gameActive) return;
+
+            const itemData = gameItems[Math.floor(Math.random() * gameItems.length)];
+
+            // 创建物品元素
+            const item = document.createElement('div');
+            item.className = 'game-item';
+
+            // 设置样式
+            item.style.background = itemData.bgColor;
+            item.style.borderColor = itemData.borderColor;
+
+            // 随机位置（从底部出现）
+            const x = Math.random() * (gameArea.offsetWidth - 140);
+            const y = gameArea.offsetHeight + 140;
+
+            item.style.left = `${x}px`;
+            item.style.top = `${y}px`;
+
+            // 添加内容
+            item.innerHTML = `
+                <div class="item-icon">${itemData.emoji}</div>
+                <div class="item-label">${itemData.name}</div>
+            `;
+
+            gameArea.appendChild(item);
+
+            // 计算速度（基于难度）
+            const speed = itemData.speed + (difficulty * 0.5);
+
+            // 添加到物品数组
+            const itemObj = {
+                element: item,
+                x: x,
+                y: y,
+                speed: speed,
+                data: itemData,
+                width: 140,
+                height: 140,
+                isCut: false
+            };
+
+            items.push(itemObj);
+
+            // 开始物品动画
+            animateItem(itemObj);
+        }
+
+        // 动画物品移动
+        function animateItem(item) {
+            if (!gameActive) return;
+
+            const moveItem = () => {
+                if (!item.element || !item.element.parentNode) return;
+
+                // 如果物品已被切割，停止动画
+                if (item.isCut) return;
+
+                // 更新位置
+                item.y -= item.speed;
+                item.element.style.top = `${item.y}px`;
+
+                // 轻微左右摆动
+                item.x += Math.sin(Date.now() / 500 + item.y / 100) * 0.5;
+                item.element.style.left = `${item.x}px`;
+
+                // 如果物品移出屏幕，移除它
+                if (item.y < -200) {
+                    // 移除物品
+                    if (item.element.parentNode) {
+                        item.element.parentNode.removeChild(item.element);
+                    }
+
+                    // 从数组中移除
+                    const index = items.indexOf(item);
+                    if (index > -1) {
+                        items.splice(index, 1);
+                    }
+
+                    // 中断连击
+                    if (currentCombo > 0) {
+                        currentCombo = 0;
+                        updateUI();
+                        comboDisplay.classList.remove('active');
+                    }
+
+                    return;
+                }
+
+                // 继续动画
+                requestAnimationFrame(moveItem);
+            };
+
+            moveItem();
+        }
+
+        // 切割物品 - 实现一切两半效果
+        function cutItem(item, cutAngle, x, y) {
+            if (!item.element || !item.element.parentNode || item.isCut) return;
+
+            // 标记物品已被切割
+            item.isCut = true;
+
+            // 增加分数
+            const comboMultiplier = 1 + (currentCombo * 0.25);
+            const itemScore = Math.round(item.data.score * comboMultiplier);
+            gameScore += itemScore;
+            cutCount++;
+
+            // 增加连击
+            const now = Date.now();
+            if (now - lastCutTime < 1200) { // 1.2秒内切割算连击
+                currentCombo++;
+                if (currentCombo > maxCombo) {
+                    maxCombo = currentCombo;
+                }
+
+                // 显示连击效果
+                comboCountEl.textContent = currentCombo;
+                comboDisplay.classList.add('active');
+
+                // 重置连击计时器
+                clearTimeout(comboTimeout);
+                comboTimeout = setTimeout(() => {
+                    currentCombo = 0;
+                    updateUI();
+                    comboDisplay.classList.remove('active');
+                }, 1200);
+            } else {
+                currentCombo = 1;
+                comboDisplay.classList.add('active');
+                comboCountEl.textContent = currentCombo;
+
+                // 重置连击计时器
+                clearTimeout(comboTimeout);
+                comboTimeout = setTimeout(() => {
+                    currentCombo = 0;
+                    updateUI();
+                    comboDisplay.classList.remove('active');
+                }, 1200);
+            }
+
+            lastCutTime = now;
+
+            // 显示分数弹窗
+            showScorePopup(x, y, itemScore);
+
+            // 创建果汁喷溅效果
+            createJuiceSplash(x, y, item.data.juiceColor);
+
+            // 播放切割音效（模拟）
+            playCutSound();
+
+            // 创建两半效果
+            createItemHalves(item, cutAngle);
+
+            // 移除原物品
+            if (item.element.parentNode) {
+                item.element.parentNode.removeChild(item.element);
+            }
+
+            // 从数组中移除
+            const index = items.indexOf(item);
+            if (index > -1) {
+                items.splice(index, 1);
+            }
+
+            // 更新UI
+            updateUI();
+        }
+
+        // 创建物品的两半
+        function createItemHalves(item, cutAngle) {
+            const centerX = item.x + item.width / 2;
+            const centerY = item.y + item.height / 2;
+
+            // 左半部分
+            const halfLeft = document.createElement('div');
+            halfLeft.className = 'item-half half-left';
+            halfLeft.style.background = item.data.bgColor;
+            halfLeft.style.borderColor = item.data.borderColor;
+            halfLeft.style.left = `${item.x}px`;
+            halfLeft.style.top = `${item.y}px`;
+
+            // 右半部分
+            const halfRight = document.createElement('div');
+            halfRight.className = 'item-half half-right';
+            halfRight.style.background = item.data.bgColor;
+            halfRight.style.borderColor = item.data.borderColor;
+            halfRight.style.left = `${item.x}px`;
+            halfRight.style.top = `${item.y}px`;
+
+            // 添加内容
+            const leftContent = document.createElement('div');
+            leftContent.className = 'half-content';
+            leftContent.style.left = '0px';
+            leftContent.innerHTML = `
+                <div class="half-emoji">${item.data.emoji}</div>
+                <div class="half-label">${item.data.name}</div>
+            `;
+
+            const rightContent = document.createElement('div');
+            rightContent.className = 'half-content';
+            rightContent.style.left = '-140px';
+            rightContent.innerHTML = `
+                <div class="half-emoji">${item.data.emoji}</div>
+                <div class="half-label">${item.data.name}</div>
+            `;
+
+            halfLeft.appendChild(leftContent);
+            halfRight.appendChild(rightContent);
+
+            gameArea.appendChild(halfLeft);
+            gameArea.appendChild(halfRight);
+
+            // 计算旋转和飞出的角度
+            // 切割角度决定两半飞出的方向
+            const leftRotate = cutAngle - 30 + Math.random() * 20;
+            const rightRotate = cutAngle + 30 + Math.random() * 20;
+
+            const leftX = Math.cos(leftRotate * Math.PI / 180) * 3;
+            const leftY = -Math.abs(Math.sin(leftRotate * Math.PI / 180) * 5) - 3;
+
+            const rightX = Math.cos(rightRotate * Math.PI / 180) * 3;
+            const rightY = -Math.abs(Math.sin(rightRotate * Math.PI / 180) * 5) - 3;
+
+            // 应用动画
+            let leftPosX = item.x;
+            let leftPosY = item.y;
+            let rightPosX = item.x;
+            let rightPosY = item.y;
+            let leftRotation = 0;
+            let rightRotation = 0;
+            let opacity = 1;
+
+            const animateHalves = () => {
+                // 更新位置
+                leftPosX += leftX;
+                leftPosY += leftY;
+                rightPosX += rightX;
+                rightPosY += rightY;
+
+                // 更新旋转
+                leftRotation += 5;
+                rightRotation -= 5;
+
+                // 更新透明度
+                opacity -= 0.02;
+
+                // 应用变换
+                halfLeft.style.left = `${leftPosX}px`;
+                halfLeft.style.top = `${leftPosY}px`;
+                halfLeft.style.transform = `rotate(${leftRotation}deg)`;
+                halfLeft.style.opacity = opacity;
+
+                halfRight.style.left = `${rightPosX}px`;
+                halfRight.style.top = `${rightPosY}px`;
+                halfRight.style.transform = `rotate(${rightRotation}deg)`;
+                halfRight.style.opacity = opacity;
+
+                // 如果还有透明度，继续动画
+                if (opacity > 0) {
+                    requestAnimationFrame(animateHalves);
+                } else {
+                    // 移除元素
+                    if (halfLeft.parentNode) halfLeft.parentNode.removeChild(halfLeft);
+                    if (halfRight.parentNode) halfRight.parentNode.removeChild(halfRight);
+                }
+            };
+
+            requestAnimationFrame(animateHalves);
+        }
+
+        // 创建果汁喷溅效果
+        function createJuiceSplash(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'juice-particle';
+                particle.style.left = `${x}px`;
+                particle.style.top = `${y}px`;
+                particle.style.background = color;
+
+                gameArea.appendChild(particle);
+
+                // 随机方向
+                const angle = Math.random() * Math.PI * 2;
+                const speed = 1 + Math.random() * 5;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+
+                // 随机大小
+                const size = 5 + Math.random() * 12;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+
+                // 动画粒子
+                let posX = x;
+                let posY = y;
+                let opacity = 0.8;
+
+                const animateParticle = () => {
+                    posX += vx;
+                    posY += vy;
+                    opacity -= 0.03;
+
+                    particle.style.left = `${posX}px`;
+                    particle.style.top = `${posY}px`;
+                    particle.style.opacity = opacity;
+
+                    // 重力效果
+                    vy += 0.1;
+
+                    if (opacity > 0) {
+                        requestAnimationFrame(animateParticle);
+                    } else {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    }
+                };
+
+                requestAnimationFrame(animateParticle);
+            }
+        }
+
+        // 显示分数弹窗
+        function showScorePopup(x, y, score) {
+            const popup = document.createElement('div');
+            popup.className = 'score-popup';
+            popup.textContent = `+${score}`;
+            popup.style.left = `${x}px`;
+            popup.style.top = `${y}px`;
+
+            gameArea.appendChild(popup);
+
+            // 动画结束后移除
+            setTimeout(() => {
+                if (popup.parentNode) {
+                    popup.parentNode.removeChild(popup);
+                }
+            }, 1200);
+        }
+
+        // 创建切割线
+        function createCutLine(startX, startY, endX, endY) {
+            const line = document.createElement('div');
+            line.className = 'cut-line';
+
+            // 计算线的长度和角度
+            const dx = endX - startX;
+            const dy = endY - startY;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+
+            line.style.width = `${length}px`;
+            line.style.left = `${startX}px`;
+            line.style.top = `${startY}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+
+            gameArea.appendChild(line);
+
+            cutLines.push({
+                element: line,
+                opacity: 1
+            });
+        }
+
+        // 更新切割线
+        function updateCutLines() {
+            // 移除旧切割线
+            cutLines.forEach((line, index) => {
+                line.opacity -= 0.05;
+                line.element.style.opacity = line.opacity;
+
+                if (line.opacity <= 0) {
+                    if (line.element.parentNode) {
+                        line.element.parentNode.removeChild(line.element);
+                    }
+                    cutLines.splice(index, 1);
+                }
+            });
+        }
+
+        // 播放切割音效（模拟）
+        function playCutSound() {
+            try {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioContext.createOscillator();
+                const gainNode = audioContext.createGain();
+
+                oscillator.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                oscillator.frequency.setValueAtTime(400 + Math.random() * 300, audioContext.currentTime);
+                gainNode.gain.setValueAtTime(0.08, audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+
+                oscillator.start(audioContext.currentTime);
+                oscillator.stop(audioContext.currentTime + 0.15);
+            } catch (e) {
+                // 如果音频上下文不可用，静默失败
+            }
+        }
+
+        // 更新UI
+        function updateUI() {
+            scoreEl.textContent = gameScore;
+            timerEl.textContent = gameTime;
+            comboEl.textContent = currentCombo;
+            cutsEl.textContent = cutCount;
+        }
+
+        // 更新难度显示
+        function updateDifficulty() {
+            let difficultyText = "普通";
+            if (difficulty === 2) {
+                difficultyText = "困难";
+            } else if (difficulty === 3) {
+                difficultyText = "专家";
+            }
+
+            difficultyEl.textContent = `难度: ${difficultyText}`;
+        }
+
+        // 结束游戏
+        function endGame() {
+            gameActive = false;
+
+            // 清除所有计时器
+            clearInterval(gameTimer);
+            clearInterval(itemSpawnTimer);
+            clearInterval(trailTimer);
+            clearInterval(cutLineTimer);
+            clearTimeout(comboTimeout);
+
+            // 清空物品
+            items.forEach(item => {
+                if (item.element && item.element.parentNode) {
+                    item.element.parentNode.removeChild(item.element);
+                }
+            });
+            items = [];
+
+            // 清空轨迹
+            trails.forEach(trail => {
+                if (trail.element && trail.element.parentNode) {
+                    trail.element.parentNode.removeChild(trail.element);
+                }
+            });
+            trails = [];
+
+            // 清空切割线
+            cutLines.forEach(line => {
+                if (line.element && line.element.parentNode) {
+                    line.element.parentNode.removeChild(line.element);
+                }
+            });
+            cutLines = [];
+
+            // 更新按钮状态
+            startBtn.disabled = false;
+            startBtn.innerHTML = '<i class="fas fa-play-circle"></i> 开始减压';
+
+            // 显示游戏结束弹窗
+            finalScoreEl.textContent = gameScore;
+            finalCutsEl.textContent = cutCount;
+            finalComboEl.textContent = maxCombo;
+            finalTimeEl.textContent = gameTime > 0 ? `${gameTime}s` : "0s";
+            stressReleasedEl.textContent = cutCount;
+
+            // 根据分数显示不同结果
+            let resultText = "减压完成!";
+            if (gameScore >= 5000) {
+                resultText = "减压大师!";
+            } else if (gameScore >= 3000) {
+                resultText = "压力克星!";
+            } else if (gameScore >= 1500) {
+                resultText = "减压高手!";
+            } else if (gameScore < 500) {
+                resultText = "还需努力!";
+            }
+
+            document.getElementById('game-result').textContent = resultText;
+
+            // 显示弹窗
+            setTimeout(() => {
+                gameOverlay.classList.add('active');
+            }, 800);
+        }
+
+        // 轨迹效果
+        function updateTrails() {
+            // 移除旧轨迹
+            trails.forEach((trail, index) => {
+                trail.opacity -= 0.06;
+                trail.element.style.opacity = trail.opacity;
+                trail.element.style.transform = `translate(-50%, -50%) scale(${trail.opacity})`;
+
+                if (trail.opacity <= 0) {
+                    if (trail.element.parentNode) {
+                        trail.element.parentNode.removeChild(trail.element);
+                    }
+                    trails.splice(index, 1);
+                }
+            });
+        }
+
+        // 创建轨迹点
+        function createTrail(x, y) {
+            const trail = document.createElement('div');
+            trail.className = 'trail';
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+
+            gameArea.appendChild(trail);
+
+            trails.push({
+                element: trail,
+                opacity: 0.9
+            });
+        }
+
+        // 鼠标/触摸移动处理
+        function handleMove(x, y) {
+            if (!gameActive) return;
+
+            // 创建轨迹点
+            createTrail(x, y);
+
+            // 如果有上一个点，创建切割线
+            if (lastCutPoint) {
+                const distance = Math.sqrt(
+                    Math.pow(x - lastCutPoint.x, 2) +
+                    Math.pow(y - lastCutPoint.y, 2)
+                );
+
+                // 如果距离足够，创建切割线
+                if (distance > 20) {
+                    createCutLine(lastCutPoint.x, lastCutPoint.y, x, y);
+
+                    // 检测切割线是否与物品相交
+                    detectCutIntersection(lastCutPoint.x, lastCutPoint.y, x, y);
+                }
+            }
+
+            // 更新上一个点
+            lastCutPoint = { x, y };
+
+            // 直接检测鼠标当前位置是否与物品相交（作为备用检测）
+            detectDirectIntersection(x, y);
+        }
+
+        // 检测切割线与物品的交点
+        function detectCutIntersection(x1, y1, x2, y2) {
+            items.forEach(item => {
+                if (item.isCut) return;
+
+                // 计算物品中心点
+                const centerX = item.x + item.width / 2;
+                const centerY = item.y + item.height / 2;
+                const radius = item.width / 2;
+
+                // 计算切割线与圆心之间的最短距离
+                const distance = pointToLineDistance(centerX, centerY, x1, y1, x2, y2);
+
+                // 如果距离小于半径，说明切割线与物品相交
+                if (distance < radius) {
+                    // 计算切割角度（从x1,y1到x2,y2的角度）
+                    const cutAngle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+
+                    // 计算交点（近似使用线段中点）
+                    const intersectX = (x1 + x2) / 2;
+                    const intersectY = (y1 + y2) / 2;
+
+                    cutItem(item, cutAngle, intersectX, intersectY);
+                }
+            });
+        }
+
+        // 计算点到线段的距离
+        function pointToLineDistance(px, py, x1, y1, x2, y2) {
+            const A = px - x1;
+            const B = py - y1;
+            const C = x2 - x1;
+            const D = y2 - y1;
+
+            const dot = A * C + B * D;
+            const lenSq = C * C + D * D;
+            let param = -1;
+
+            if (lenSq !== 0) {
+                param = dot / lenSq;
+            }
+
+            let xx, yy;
+
+            if (param < 0) {
+                xx = x1;
+                yy = y1;
+            } else if (param > 1) {
+                xx = x2;
+                yy = y2;
+            } else {
+                xx = x1 + param * C;
+                yy = y1 + param * D;
+            }
+
+            const dx = px - xx;
+            const dy = py - yy;
+
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+
+        // 直接检测鼠标/触摸点是否与物品相交（备用检测）
+        function detectDirectIntersection(x, y) {
+            items.forEach(item => {
+                if (item.isCut) return;
+
+                // 计算物品中心点
+                const centerX = item.x + item.width / 2;
+                const centerY = item.y + item.height / 2;
+
+                // 计算距离
+                const distance = Math.sqrt(
+                    Math.pow(x - centerX, 2) +
+                    Math.pow(y - centerY, 2)
+                );
+
+                // 如果距离小于物品半径，则切割
+                if (distance < item.width / 2) {
+                    // 随机切割角度
+                    const cutAngle = Math.random() * 360;
+                    cutItem(item, cutAngle, x, y);
+                }
+            });
+        }
+
+        // 事件监听器
+        startBtn.addEventListener('click', startGameWithCountdown);
+
+        pauseBtn.addEventListener('click', () => {
+            if (gameActive) {
+                pauseGame();
+            } else {
+                startGame();
+            }
+        });
+
+        resetBtn.addEventListener('click', () => {
+            pauseGame();
+            initGame();
+        });
+
+        playAgainBtn.addEventListener('click', () => {
+            initGame();
+            startGameWithCountdown();
+        });
+
+        // 鼠标事件
+        gameArea.addEventListener('mousemove', (e) => {
+            const rect = gameArea.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            handleMove(x, y);
+        });
+
+        // 触摸事件（移动设备）
+        gameArea.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const rect = gameArea.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            handleMove(x, y);
+        }, { passive: false });
+
+        gameArea.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const rect = gameArea.getBoundingClientRect();
+            const touch = e.touches[0];
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+
+            // 初始化上一个点
+            lastCutPoint = { x, y };
+
+            handleMove(x, y);
+        }, { passive: false });
+
+        // 鼠标/触摸结束，重置上一个点
+        gameArea.addEventListener('mouseup', () => {
+            lastCutPoint = null;
+        });
+
+        gameArea.addEventListener('touchend', () => {
+            lastCutPoint = null;
+        });
+
+        // 初始化游戏
+        initGame();
+
+        // 添加键盘快捷键
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                if (gameActive) {
+                    pauseGame();
+                } else {
+                    startGameWithCountdown();
+                }
+            } else if (e.code === 'KeyR') {
+                e.preventDefault();
+                pauseGame();
+                initGame();
+            } else if (e.code === 'Escape') {
+                e.preventDefault();
+                if (gameActive) {
+                    pauseGame();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
