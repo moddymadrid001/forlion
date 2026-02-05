@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>星尘汇聚 - 只为你</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #020205;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        #ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        .overlay {
+            background: rgba(0, 0, 0, 0.85);
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            pointer-events: auto;
+            transition: opacity 1.5s ease;
+            box-shadow: 0 0 30px rgba(255, 77, 109, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h1 {
+            color: #fff;
+            margin-bottom: 25px;
+            font-weight: 300;
+            letter-spacing: 6px;
+            font-size: 1.8rem;
+        }
+
+        button {
+            padding: 16px 45px;
+            font-size: 1.1rem;
+            background: linear-gradient(45deg, #ff4d6d, #ff758c);
+            color: #fff;
+            border: none;
+            border-radius: 35px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            outline: none;
+            font-weight: bold;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255, 77, 109, 0.6);
+        }
+
+        #message {
+            position: absolute;
+            bottom: 8%;
+            color: #fff;
+            font-size: 1.4rem;
+            letter-spacing: 3px;
+            opacity: 0;
+            transition: opacity 2.5s;
+            text-shadow: 0 0 15px rgba(255,255,255,0.5);
+            font-weight: 300;
+        }
+
+        #file-input { display: none; }
+
+        #status-text {
+            color: #ff758c;
+            margin-top: 15px;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="overlay" id="start-overlay">
+            <h1 id="main-title">遇见你，世界才完整</h1>
+            <button id="start-btn">开启浪漫时刻</button>
+            <div id="status-text">正在唤醒星辰能量...</div>
+        </div>
+        <div id="message">所有的星辰，最终都汇聚成你的样子</div>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*">
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const CONFIG = {
+            imagePath: '7a2e027fb63036aa4b8c3ff85dfecf06.jpg',
+            maxParticles: 15000,
+            particleSize: 1.8,
+            friction: 0.92,
+            mouseRadius: 100,
+            tornadoDuration: 6000
+        };
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startOverlay = document.getElementById('start-overlay');
+        const startBtn = document.getElementById('start-btn');
+        const message = document.getElementById('message');
+        const fileInput = document.getElementById('file-input');
+        const statusText = document.getElementById('status-text');
+
+        let particles = [];
+        let cupidArrows = [];
+        let width, height;
+        let img = new Image();
+        let isAssembling = false;
+        let assembleStartTime = 0;
+        let mouse = { x: -1000, y: -1000 };
+
+        function initSize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+        }
+
+        class CupidArrow {
+            constructor() {
+                this.reset();
+            }
+            reset() {
+                this.x = Math.random() * width;
+                this.y = -50;
+                this.speed = Math.random() * 5 + 6;
+                this.angle = Math.PI / 4 + (Math.random() * 0.2 - 0.1); // 大约45度角下落
+                this.size = Math.random() * 15 + 20;
+                this.opacity = 0;
+            }
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.globalAlpha = this.opacity;
+
+                // 箭身
+                ctx.strokeStyle = '#ff758c';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                ctx.lineTo(-this.size * 2, 0);
+                ctx.stroke();
+
+                // 心形箭头
+                ctx.fillStyle = '#ff4d6d';
+                ctx.beginPath();
+                const heartScale = 0.4;
+                ctx.moveTo(0, 0);
+                // 简单绘制一个心形
+                ctx.bezierCurveTo(5, -5, 10, 0, 0, 10);
+                ctx.bezierCurveTo(-10, 0, -5, -5, 0, 0);
+                ctx.fill();
+
+                // 箭尾羽毛
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 2, 0);
+                ctx.lineTo(-this.size * 2.3, -5);
+                ctx.moveTo(-this.size * 2, 0);
+                ctx.lineTo(-this.size * 2.3, 5);
+                ctx.stroke();
+
+                ctx.restore();
+            }
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+
+                if (this.opacity < 0.8) this.opacity += 0.02;
+
+                if (this.x > width + 50 || this.y > height + 50) {
+                    this.reset();
+                }
+            }
+        }
+
+        class Particle {
+            constructor(destX, destY, r, g, b) {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.destX = destX;
+                this.destY = destY;
+                this.color = `rgb(${r},${g},${b})`;
+                this.vx = (Math.random() - 0.5) * 20;
+                this.vy = (Math.random() - 0.5) * 20;
+                this.angle = Math.random() * Math.PI * 2;
+                this.spinSpeed = Math.random() * 0.1 + 0.05;
+            }
+
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, CONFIG.particleSize, CONFIG.particleSize);
+            }
+
+            update(now) {
+                if (isAssembling) {
+                    const elapsed = now - assembleStartTime;
+                    if (elapsed < CONFIG.tornadoDuration) {
+                        const centerX = width / 2;
+                        const centerY = height / 2;
+                        const progress = elapsed / CONFIG.tornadoDuration;
+                        this.angle += this.spinSpeed * (1 + progress);
+                        const targetRadius = (1 - progress) * (width * 0.4);
+                        const tx = centerX + Math.cos(this.angle) * targetRadius;
+                        const ty = centerY + Math.sin(this.angle) * targetRadius + Math.sin(elapsed/500)*50;
+                        this.vx += (tx - this.x) * 0.05;
+                        this.vy += (ty - this.y) * 0.05;
+                    } else {
+                        const dx = this.destX - this.x;
+                        const dy = this.destY - this.y;
+                        this.vx += dx * 0.08;
+                        this.vy += dy * 0.08;
+                    }
+                    this.vx *= CONFIG.friction;
+                    this.vy *= CONFIG.friction;
+                } else {
+                    this.x += Math.sin(Date.now() / 1000 + this.destX) * 0.2;
+                    this.y += Math.cos(Date.now() / 1000 + this.destY) * 0.2;
+                }
+
+                let mdx = mouse.x - this.x;
+                let mdy = mouse.y - this.y;
+                let mDistSq = mdx * mdx + mdy * mdy;
+                if (mDistSq < CONFIG.mouseRadius * CONFIG.mouseRadius) {
+                    let mDist = Math.sqrt(mDistSq);
+                    let force = (CONFIG.mouseRadius - mDist) / CONFIG.mouseRadius;
+                    this.vx -= (mdx / mDist) * force * 10;
+                    this.vy -= (mdy / mDist) * force * 10;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+        }
+
+        function processImage() {
+            if (!img.complete || img.naturalWidth === 0) return false;
+            initSize();
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            let scale = Math.min((width * 0.8) / img.width, (height * 0.8) / img.height);
+            let imgW = img.width * scale;
+            let imgH = img.height * scale;
+            tempCanvas.width = width;
+            tempCanvas.height = height;
+            let startX = (width - imgW) / 2;
+            let startY = (height - imgH) / 2;
+            tempCtx.drawImage(img, startX, startY, imgW, imgH);
+            try {
+                const imageData = tempCtx.getImageData(0, 0, width, height).data;
+                particles = [];
+                let gap = Math.sqrt((imgW * imgH) / CONFIG.maxParticles);
+                gap = Math.max(gap, 1.5);
+                for (let y = startY; y < startY + imgH; y += gap) {
+                    for (let x = startX; x < startX + imgW; x += gap) {
+                        let index = (Math.floor(y) * width + Math.floor(x)) * 4;
+                        if (imageData[index + 3] > 100) {
+                            particles.push(new Particle(x, y, imageData[index], imageData[index + 1], imageData[index + 2]));
+                        }
+                    }
+                }
+                statusText.innerText = "准备就绪";
+                return true;
+            } catch (e) {
+                statusText.innerText = "加载受限，点击重试";
+                return false;
+            }
+        }
+
+        function animate() {
+            const now = Date.now();
+            ctx.fillStyle = 'rgba(2, 2, 5, 0.3)';
+            ctx.fillRect(0, 0, width, height);
+
+            // 绘制丘比特之箭
+            if (cupidArrows.length < 6 && Math.random() < 0.02) cupidArrows.push(new CupidArrow());
+            cupidArrows.forEach(arrow => {
+                arrow.update();
+                arrow.draw();
+            });
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(now);
+                particles[i].draw();
+            }
+            requestAnimationFrame(animate);
+        }
+
+        startBtn.onclick = () => {
+            if (particles.length === 0) {
+                if(!processImage()){
+                    fileInput.click();
+                    return;
+                }
+            }
+            startEffect();
+        };
+
+        function startEffect() {
+            startOverlay.style.opacity = '0';
+            setTimeout(() => {
+                startOverlay.style.display = 'none';
+                assembleStartTime = Date.now();
+                isAssembling = true;
+                setTimeout(() => { message.style.opacity = '1'; }, CONFIG.tornadoDuration + 2000);
+            }, 1000);
+        }
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    img.src = event.target.result;
+                    img.onload = () => {
+                        processImage();
+                        startEffect();
+                    };
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        window.addEventListener('mousemove', e => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+        });
+
+        initSize();
+        animate();
+        img.crossOrigin = "Anonymous";
+        img.onload = processImage;
+        img.src = CONFIG.imagePath;
+    </script>
+</body>
+</html>
