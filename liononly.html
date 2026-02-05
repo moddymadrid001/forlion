@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>星尘汇聚 - 只为你</title>
     <style>
         body {
@@ -11,6 +11,7 @@
             overflow: hidden;
             background-color: #020205;
             font-family: 'Microsoft YaHei', sans-serif;
+            touch-action: none; /* 防止移动端默认缩放手势干扰 */
         }
 
         canvas {
@@ -33,51 +34,49 @@
 
         .overlay {
             background: rgba(0, 0, 0, 0.85);
-            padding: 40px;
-            border-radius: 24px;
+            padding: 25px;
+            border-radius: 20px;
             text-align: center;
             pointer-events: auto;
             transition: opacity 1.5s ease;
             box-shadow: 0 0 30px rgba(255, 77, 109, 0.2);
             border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 80%;
         }
 
         h1 {
             color: #fff;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             font-weight: 300;
-            letter-spacing: 6px;
-            font-size: 1.8rem;
+            letter-spacing: 4px;
+            font-size: 1.4rem;
         }
 
         button {
-            padding: 16px 45px;
-            font-size: 1.1rem;
+            padding: 12px 35px;
+            font-size: 1rem;
             background: linear-gradient(45deg, #ff4d6d, #ff758c);
             color: #fff;
             border: none;
-            border-radius: 35px;
+            border-radius: 30px;
             cursor: pointer;
             transition: transform 0.3s, box-shadow 0.3s;
             outline: none;
             font-weight: bold;
         }
 
-        button:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 25px rgba(255, 77, 109, 0.6);
-        }
-
         #message {
             position: absolute;
-            bottom: 8%;
+            bottom: 12%;
             color: #fff;
-            font-size: 1.4rem;
-            letter-spacing: 3px;
+            font-size: 1.1rem;
+            letter-spacing: 2px;
             opacity: 0;
             transition: opacity 2.5s;
             text-shadow: 0 0 15px rgba(255,255,255,0.5);
             font-weight: 300;
+            text-align: center;
+            width: 100%;
         }
 
         #file-input { display: none; }
@@ -85,7 +84,7 @@
         #status-text {
             color: #ff758c;
             margin-top: 15px;
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             opacity: 0.8;
         }
     </style>
@@ -107,11 +106,11 @@
     <script>
         const CONFIG = {
             imagePath: '7a2e027fb63036aa4b8c3ff85dfecf06.jpg',
-            maxParticles: 15000,
-            particleSize: 1.8,
-            friction: 0.92,
-            mouseRadius: 100,
-            tornadoDuration: 6000
+            maxParticles: 12000,
+            particleSize: 1.5,
+            friction: 0.91,
+            mouseRadius: 80,
+            animationDuration: 10000 // 总动画时长增加到10秒
         };
 
         const canvas = document.getElementById('canvas');
@@ -130,6 +129,41 @@
         let assembleStartTime = 0;
         let mouse = { x: -1000, y: -1000 };
 
+        // 预定义LOVE字母坐标获取函数
+        function getLetterCoords(letter, centerX, centerY, size) {
+            const coords = [];
+            const samples = 400;
+            switch(letter) {
+                case 'L':
+                    for(let i=0; i<samples; i++) {
+                        if(i < samples*0.7) coords.push({x: centerX - size*0.3, y: centerY - size*0.5 + (i/(samples*0.7))*size});
+                        else coords.push({x: centerX - size*0.3 + ((i-samples*0.7)/(samples*0.3))*size*0.6, y: centerY + size*0.5});
+                    }
+                    break;
+                case 'O':
+                    for(let i=0; i<samples; i++) {
+                        let a = (i/samples) * Math.PI * 2;
+                        coords.push({x: centerX + Math.cos(a)*size*0.4, y: centerY + Math.sin(a)*size*0.5});
+                    }
+                    break;
+                case 'V':
+                    for(let i=0; i<samples; i++) {
+                        if(i < samples/2) coords.push({x: centerX - size*0.4 + (i/(samples/2))*size*0.4, y: centerY - size*0.5 + (i/(samples/2))*size});
+                        else coords.push({x: centerX + ((i-samples/2)/(samples/2))*size*0.4, y: centerY + size*0.5 - ((i-samples/2)/(samples/2))*size});
+                    }
+                    break;
+                case 'E':
+                    for(let i=0; i<samples; i++) {
+                        if(i < samples*0.4) coords.push({x: centerX - size*0.3, y: centerY - size*0.5 + (i/(samples*0.4))*size});
+                        else if(i < samples*0.6) coords.push({x: centerX - size*0.3 + ((i-samples*0.4)/(samples*0.2))*size*0.6, y: centerY - size*0.5});
+                        else if(i < samples*0.8) coords.push({x: centerX - size*0.3 + ((i-samples*0.6)/(samples*0.2))*size*0.5, y: centerY});
+                        else coords.push({x: centerX - size*0.3 + ((i-samples*0.8)/(samples*0.2))*size*0.6, y: centerY + size*0.5});
+                    }
+                    break;
+            }
+            return coords;
+        }
+
         function initSize() {
             width = window.innerWidth;
             height = window.innerHeight;
@@ -138,62 +172,34 @@
         }
 
         class CupidArrow {
-            constructor() {
-                this.reset();
-            }
+            constructor() { this.reset(); }
             reset() {
                 this.x = Math.random() * width;
                 this.y = -50;
-                this.speed = Math.random() * 5 + 6;
-                this.angle = Math.PI / 4 + (Math.random() * 0.2 - 0.1); // 大约45度角下落
-                this.size = Math.random() * 15 + 20;
+                this.speed = Math.random() * 4 + 5;
+                this.angle = Math.PI / 3.5;
+                this.size = 20;
                 this.opacity = 0;
+            }
+            update() {
+                this.x += Math.cos(this.angle) * this.speed;
+                this.y += Math.sin(this.angle) * this.speed;
+                if (this.opacity < 0.6) this.opacity += 0.02;
+                if (this.x > width + 50 || this.y > height + 50) this.reset();
             }
             draw() {
                 ctx.save();
                 ctx.translate(this.x, this.y);
                 ctx.rotate(this.angle);
                 ctx.globalAlpha = this.opacity;
-
-                // 箭身
                 ctx.strokeStyle = '#ff758c';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(0, 0);
-                ctx.lineTo(-this.size * 2, 0);
-                ctx.stroke();
-
-                // 心形箭头
+                ctx.lineWidth = 1.5;
+                ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(-this.size*2, 0); ctx.stroke();
                 ctx.fillStyle = '#ff4d6d';
                 ctx.beginPath();
-                const heartScale = 0.4;
-                ctx.moveTo(0, 0);
-                // 简单绘制一个心形
-                ctx.bezierCurveTo(5, -5, 10, 0, 0, 10);
-                ctx.bezierCurveTo(-10, 0, -5, -5, 0, 0);
+                ctx.moveTo(0,0); ctx.bezierCurveTo(4,-4,8,0,0,8); ctx.bezierCurveTo(-8,0,-4,-4,0,0);
                 ctx.fill();
-
-                // 箭尾羽毛
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(-this.size * 2, 0);
-                ctx.lineTo(-this.size * 2.3, -5);
-                ctx.moveTo(-this.size * 2, 0);
-                ctx.lineTo(-this.size * 2.3, 5);
-                ctx.stroke();
-
                 ctx.restore();
-            }
-            update() {
-                this.x += Math.cos(this.angle) * this.speed;
-                this.y += Math.sin(this.angle) * this.speed;
-
-                if (this.opacity < 0.8) this.opacity += 0.02;
-
-                if (this.x > width + 50 || this.y > height + 50) {
-                    this.reset();
-                }
             }
         }
 
@@ -204,10 +210,14 @@
                 this.destX = destX;
                 this.destY = destY;
                 this.color = `rgb(${r},${g},${b})`;
-                this.vx = (Math.random() - 0.5) * 20;
-                this.vy = (Math.random() - 0.5) * 20;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
                 this.angle = Math.random() * Math.PI * 2;
-                this.spinSpeed = Math.random() * 0.1 + 0.05;
+                this.spinSpeed = Math.random() * 0.08 + 0.02;
+
+                // 分配字母目标（循环分配L-O-V-E）
+                const letters = ['L','O','V','E'];
+                this.letterType = letters[Math.floor(Math.random() * 4)];
             }
 
             draw() {
@@ -218,21 +228,47 @@
             update(now) {
                 if (isAssembling) {
                     const elapsed = now - assembleStartTime;
-                    if (elapsed < CONFIG.tornadoDuration) {
+                    const stage = elapsed / CONFIG.animationDuration;
+
+                    if (stage < 0.8) {
+                        // 旋涡 + LOVE 变换阶段
                         const centerX = width / 2;
                         const centerY = height / 2;
-                        const progress = elapsed / CONFIG.tornadoDuration;
-                        this.angle += this.spinSpeed * (1 + progress);
-                        const targetRadius = (1 - progress) * (width * 0.4);
-                        const tx = centerX + Math.cos(this.angle) * targetRadius;
-                        const ty = centerY + Math.sin(this.angle) * targetRadius + Math.sin(elapsed/500)*50;
-                        this.vx += (tx - this.x) * 0.05;
-                        this.vy += (ty - this.y) * 0.05;
+                        const lSize = Math.min(width, height) * 0.4;
+
+                        let targetX, targetY;
+
+                        // 根据时间切换字母形态
+                        let activeLetter = '';
+                        if (stage < 0.2) activeLetter = 'L';
+                        else if (stage < 0.4) activeLetter = 'O';
+                        else if (stage < 0.6) activeLetter = 'V';
+                        else activeLetter = 'E';
+
+                        if (this.letterType === activeLetter && stage % 0.2 > 0.05) {
+                            // 暂时性地向中心字母形状靠拢，但不完全固定，保持流动感
+                            const offset = (Math.random() - 0.5) * 20;
+                            targetX = centerX + offset;
+                            targetY = centerY + offset;
+                            // 这种逻辑会让对应的粒子群在中心形成隐约的字母轮廓
+                            this.vx += (centerX - this.x) * 0.02;
+                            this.vy += (centerY - this.y) * 0.02;
+                        }
+
+                        // 基础旋涡逻辑
+                        this.angle += this.spinSpeed;
+                        const r = (1 - (stage/0.8)) * (width * 0.3) + 50;
+                        const tx = centerX + Math.cos(this.angle) * r;
+                        const ty = centerY + Math.sin(this.angle) * r;
+
+                        this.vx += (tx - this.x) * 0.04;
+                        this.vy += (ty - this.y) * 0.04;
                     } else {
+                        // 最终汇聚
                         const dx = this.destX - this.x;
                         const dy = this.destY - this.y;
-                        this.vx += dx * 0.08;
-                        this.vy += dy * 0.08;
+                        this.vx += dx * 0.1;
+                        this.vy += dy * 0.1;
                     }
                     this.vx *= CONFIG.friction;
                     this.vy *= CONFIG.friction;
@@ -241,14 +277,15 @@
                     this.y += Math.cos(Date.now() / 1000 + this.destY) * 0.2;
                 }
 
+                // 交互处理（支持鼠标和触摸）
                 let mdx = mouse.x - this.x;
                 let mdy = mouse.y - this.y;
                 let mDistSq = mdx * mdx + mdy * mdy;
                 if (mDistSq < CONFIG.mouseRadius * CONFIG.mouseRadius) {
                     let mDist = Math.sqrt(mDistSq);
                     let force = (CONFIG.mouseRadius - mDist) / CONFIG.mouseRadius;
-                    this.vx -= (mdx / mDist) * force * 10;
-                    this.vy -= (mdy / mDist) * force * 10;
+                    this.vx -= (mdx / mDist) * force * 8;
+                    this.vy -= (mdy / mDist) * force * 8;
                 }
 
                 this.x += this.vx;
@@ -261,19 +298,23 @@
             initSize();
             const tempCanvas = document.createElement('canvas');
             const tempCtx = tempCanvas.getContext('2d');
-            let scale = Math.min((width * 0.8) / img.width, (height * 0.8) / img.height);
+
+            // 适配手机：无论横屏竖屏，图片最大占85%
+            let scale = Math.min((width * 0.85) / img.width, (height * 0.7) / img.height);
             let imgW = img.width * scale;
             let imgH = img.height * scale;
+
             tempCanvas.width = width;
             tempCanvas.height = height;
             let startX = (width - imgW) / 2;
             let startY = (height - imgH) / 2;
             tempCtx.drawImage(img, startX, startY, imgW, imgH);
+
             try {
                 const imageData = tempCtx.getImageData(0, 0, width, height).data;
                 particles = [];
                 let gap = Math.sqrt((imgW * imgH) / CONFIG.maxParticles);
-                gap = Math.max(gap, 1.5);
+                gap = Math.max(gap, 1.4);
                 for (let y = startY; y < startY + imgH; y += gap) {
                     for (let x = startX; x < startX + imgW; x += gap) {
                         let index = (Math.floor(y) * width + Math.floor(x)) * 4;
@@ -285,7 +326,7 @@
                 statusText.innerText = "准备就绪";
                 return true;
             } catch (e) {
-                statusText.innerText = "加载受限，点击重试";
+                statusText.innerText = "点击按钮开启";
                 return false;
             }
         }
@@ -295,12 +336,8 @@
             ctx.fillStyle = 'rgba(2, 2, 5, 0.3)';
             ctx.fillRect(0, 0, width, height);
 
-            // 绘制丘比特之箭
-            if (cupidArrows.length < 6 && Math.random() < 0.02) cupidArrows.push(new CupidArrow());
-            cupidArrows.forEach(arrow => {
-                arrow.update();
-                arrow.draw();
-            });
+            if (cupidArrows.length < 4 && Math.random() < 0.02) cupidArrows.push(new CupidArrow());
+            cupidArrows.forEach(arrow => { arrow.update(); arrow.draw(); });
 
             for (let i = 0; i < particles.length; i++) {
                 particles[i].update(now);
@@ -325,7 +362,7 @@
                 startOverlay.style.display = 'none';
                 assembleStartTime = Date.now();
                 isAssembling = true;
-                setTimeout(() => { message.style.opacity = '1'; }, CONFIG.tornadoDuration + 2000);
+                setTimeout(() => { message.style.opacity = '1'; }, CONFIG.animationDuration + 1000);
             }, 1000);
         }
 
@@ -335,20 +372,25 @@
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     img.src = event.target.result;
-                    img.onload = () => {
-                        processImage();
-                        startEffect();
-                    };
+                    img.onload = () => { processImage(); startEffect(); };
                 };
                 reader.readAsDataURL(file);
             }
         };
 
-        window.addEventListener('mousemove', e => {
-            mouse.x = e.clientX;
-            mouse.y = e.clientY;
-        });
+        // 交互：支持鼠标和触摸
+        const handleInteraction = (e) => {
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            mouse.x = clientX;
+            mouse.y = clientY;
+        };
+        window.addEventListener('mousemove', handleInteraction);
+        window.addEventListener('touchstart', handleInteraction);
+        window.addEventListener('touchmove', handleInteraction);
+        window.addEventListener('touchend', () => { mouse.x = -1000; mouse.y = -1000; });
 
+        window.addEventListener('resize', initSize);
         initSize();
         animate();
         img.crossOrigin = "Anonymous";
