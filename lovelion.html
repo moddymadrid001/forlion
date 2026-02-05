@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>你是我的光 - Valentine's Day</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #000;
+            font-family: 'Microsoft YaHei', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            cursor: none; /* 隐藏默认鼠标，我们会自定义一个光标 */
+        }
+
+        /* 背景层：放置原本的照片 */
+        #bg-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background-color: #000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        #target-image {
+            object-fit: cover;
+            /* 初始完全不可见，由 Canvas 遮罩控制 */
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* 遮罩层 Canvas */
+        #mask-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 2;
+            mix-blend-mode: multiply; /* 关键混合模式 */
+        }
+
+        /* 粒子层 Canvas */
+        #particles-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 3;
+            pointer-events: none;
+        }
+
+        /* UI 层 */
+        #ui-layer {
+            position: absolute;
+            z-index: 10;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 50px;
+        }
+
+        .guide-text {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 1.2rem;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.3; }
+        }
+
+        /* 隐藏的文件输入 */
+        #file-input {
+            display: none;
+        }
+
+        /* 错误提示按钮 */
+        #fallback-btn {
+            pointer-events: auto;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            cursor: pointer;
+            display: none; /* 默认隐藏 */
+            font-size: 0.9rem;
+        }
+
+        #fallback-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        /* 模拟光标 */
+        #custom-cursor {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 20;
+            box-shadow: 0 0 10px rgba(255,255,255,0.8);
+            transition: width 0.2s, height 0.2s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="bg-container">
+        <!-- 核心照片 -->
+        <img id="target-image" alt="Her Photo">
+    </div>
+
+    <!-- 两个 Canvas：一个做遮罩(光照)，一个做装饰粒子 -->
+    <canvas id="mask-canvas"></canvas>
+    <canvas id="particles-canvas"></canvas>
+
+    <!-- 自定义光标跟随 -->
+    <div id="custom-cursor"></div>
+
+    <div id="ui-layer">
+        <button id="fallback-btn">图片未加载？点我上传</button>
+        <div class="guide-text" id="guide-text">在黑暗中寻找你的光...</div>
+        <input type="file" id="file-input" accept="image/*">
+    </div>
+
+    <script>
+        const CONFIG = {
+            imagePath: '7a2e027fb63036aa4b8c3ff85dfecf06.jpg',
+            lightRadius: 120, // 灯光半径
+            glowColor: '255, 220, 180', // 暖光颜色 RGB
+            darknessLevel: 0.96, // 黑暗程度 (0-1)
+            autoFade: true // 光照走过是否自动变暗
+        };
+
+        const maskCanvas = document.getElementById('mask-canvas');
+        const maskCtx = maskCanvas.getContext('2d');
+        const pCanvas = document.getElementById('particles-canvas');
+        const pCtx = pCanvas.getContext('2d');
+
+        const targetImage = document.getElementById('target-image');
+        const guideText = document.getElementById('guide-text');
+        const fallbackBtn = document.getElementById('fallback-btn');
+        const fileInput = document.getElementById('file-input');
+        const customCursor = document.getElementById('custom-cursor');
+
+        let width, height;
+        let mouse = { x: -1000, y: -1000 };
+        let isMoving = false;
+        let lastMoveTime = Date.now();
+        let particles = [];
+        let fireworks = [];
+
+        // 初始化尺寸
+        function resize() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            maskCanvas.width = width;
+            maskCanvas.height = height;
+            pCanvas.width = width;
+            pCanvas.height = height;
+
+            // 填充黑色遮罩
+            maskCtx.fillStyle = `rgba(0,0,0,1)`;
+            maskCtx.fillRect(0, 0, width, height);
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // ----------------- 交互逻辑 -----------------
+
+        function updateMouse(x, y) {
+            mouse.x = x;
+            mouse.y = y;
+            isMoving = true;
+            lastMoveTime = Date.now();
+
+            // 更新自定义光标位置
+            customCursor.style.left = x + 'px';
+            customCursor.style.top = y + 'px';
+
+            // 移动时隐藏提示文字
+            if(guideText.style.opacity !== '0') {
+                guideText.style.transition = 'opacity 1s';
+                guideText.style.opacity = '0';
+            }
+        }
+
+        window.addEventListener('mousemove', e => updateMouse(e.clientX, e.clientY));
+        window.addEventListener('touchmove', e => {
+            e.preventDefault(); // 防止滚动
+            updateMouse(e.touches[0].clientX, e.touches[0].clientY);
+        }, {passive: false});
+
+        window.addEventListener('click', (e) => {
+            createFirework(e.clientX, e.clientY);
+            // 点击时光标放大一下
+            customCursor.style.width = '40px';
+            customCursor.style.height = '40px';
+            setTimeout(() => {
+                customCursor.style.width = '20px';
+                customCursor.style.height = '20px';
+            }, 200);
+        });
+
+        // ----------------- 视觉特效逻辑 -----------------
+
+        class Firefly {
+            constructor() {
+                this.init();
+            }
+
+            init() {
+                // 粒子只在鼠标周围生成，或者随机生成
+                let nearMouse = Math.random() < 0.5;
+                if (nearMouse && mouse.x > 0) {
+                    this.x = mouse.x + (Math.random() - 0.5) * 200;
+                    this.y = mouse.y + (Math.random() - 0.5) * 200;
+                } else {
+                    this.x = Math.random() * width;
+                    this.y = Math.random() * height;
+                }
+
+                this.vx = (Math.random() - 0.5) * 1; // 慢速飘动
+                this.vy = (Math.random() - 0.5) * 1;
+                this.size = Math.random() * 2 + 0.5;
+                this.life = Math.random() * 100 + 50;
+                this.alpha = 0;
+                this.maxAlpha = Math.random() * 0.6 + 0.2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.life--;
+
+                // 渐显渐隐
+                if (this.life > 20) {
+                    if (this.alpha < this.maxAlpha) this.alpha += 0.02;
+                } else {
+                    this.alpha -= 0.03;
+                }
+
+                if (this.life <= 0 || this.alpha <= 0) {
+                    this.init();
+                }
+            }
+
+            draw() {
+                pCtx.fillStyle = `rgba(${CONFIG.glowColor}, ${this.alpha})`;
+                pCtx.beginPath();
+                pCtx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                pCtx.fill();
+            }
+        }
+
+        // 心形烟花粒子
+        class HeartParticle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                // 爆炸扩散
+                let angle = Math.random() * Math.PI * 2;
+                let speed = Math.random() * 5 + 2;
+                this.vx = Math.cos(angle) * speed;
+                this.vy = Math.sin(angle) * speed;
+                this.gravity = 0.05;
+                this.friction = 0.95;
+                this.alpha = 1;
+                this.hue = Math.random() * 30 + 330; // 粉色到红色区间
+                this.size = Math.random() * 10 + 5;
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= 0.015;
+            }
+
+            draw(ctx) {
+                if (this.alpha <= 0) return;
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.translate(this.x, this.y);
+                ctx.fillStyle = `hsl(${this.hue}, 100%, 60%)`;
+
+                // 绘制心形
+                ctx.beginPath();
+                let topCurveHeight = this.size * 0.3;
+                ctx.moveTo(0, topCurveHeight);
+                ctx.bezierCurveTo(0, 0, -this.size / 2, 0, -this.size / 2, topCurveHeight);
+                ctx.bezierCurveTo(-this.size / 2, (this.size + topCurveHeight) / 2, 0, this.size, 0, this.size);
+                ctx.bezierCurveTo(0, this.size, this.size / 2, (this.size + topCurveHeight) / 2, this.size / 2, topCurveHeight);
+                ctx.bezierCurveTo(this.size / 2, 0, 0, 0, 0, topCurveHeight);
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createFirework(x, y) {
+            for(let i=0; i<30; i++) {
+                fireworks.push(new HeartParticle(x, y));
+            }
+        }
+
+        // 初始化萤火虫
+        for(let i=0; i<50; i++) {
+            particles.push(new Firefly());
+        }
+
+        function animate() {
+            // 1. 处理遮罩层 (Mask Canvas)
+
+            // 每一帧都给遮罩层盖上一层半透明的黑色，实现“光照慢慢消失”的效果
+            // 如果不想要消失效果，注释掉下面这行
+            maskCtx.globalCompositeOperation = 'source-over';
+            maskCtx.fillStyle = `rgba(0, 0, 0, 0.1)`;
+            maskCtx.fillRect(0, 0, width, height);
+
+            // 绘制鼠标光照（擦除黑色）
+            if (mouse.x > 0) {
+                maskCtx.globalCompositeOperation = 'destination-out';
+
+                // 创建径向渐变，让光边缘柔和
+                let gradient = maskCtx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, CONFIG.lightRadius);
+                gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+                gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.5)');
+                gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+                maskCtx.fillStyle = gradient;
+                maskCtx.beginPath();
+                maskCtx.arc(mouse.x, mouse.y, CONFIG.lightRadius, 0, Math.PI * 2);
+                maskCtx.fill();
+            }
+
+            // 额外处理：如果产生了烟花，烟花本身也会照亮背景
+            fireworks.forEach(fw => {
+                if (fw.alpha > 0.1) {
+                     maskCtx.globalCompositeOperation = 'destination-out';
+                     let size = fw.size * 3;
+                     maskCtx.fillStyle = `rgba(255,255,255,${fw.alpha * 0.3})`;
+                     maskCtx.beginPath();
+                     maskCtx.arc(fw.x, fw.y, size, 0, Math.PI*2);
+                     maskCtx.fill();
+                }
+            });
+
+
+            // 2. 处理粒子装饰层 (Particles Canvas)
+            pCtx.clearRect(0, 0, width, height);
+
+            // 更新和绘制萤火虫
+            particles.forEach(p => {
+                p.update();
+                p.draw();
+            });
+
+            // 更新和绘制烟花
+            for (let i = fireworks.length - 1; i >= 0; i--) {
+                fireworks[i].update();
+                fireworks[i].draw(pCtx);
+                if (fireworks[i].alpha <= 0) {
+                    fireworks.splice(i, 1);
+                }
+            }
+
+            // 绘制鼠标周围的光晕装饰圈（在粒子层）
+            if(mouse.x > 0) {
+                pCtx.strokeStyle = `rgba(${CONFIG.glowColor}, 0.3)`;
+                pCtx.lineWidth = 2;
+                pCtx.beginPath();
+                pCtx.arc(mouse.x, mouse.y, CONFIG.lightRadius * 0.4, 0, Math.PI * 2);
+                pCtx.stroke();
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        // ----------------- 图片加载逻辑 -----------------
+
+        function onImageLoaded() {
+            targetImage.style.opacity = '1';
+            fallbackBtn.style.display = 'none';
+            // 启动动画
+            animate();
+        }
+
+        function onImageError() {
+            console.log("Image load failed, showing fallback UI");
+            fallbackBtn.style.display = 'block';
+            fallbackBtn.innerText = "找不到图片，点此选择照片";
+        }
+
+        // 尝试加载
+        targetImage.onload = onImageLoaded;
+        targetImage.onerror = onImageError;
+        targetImage.src = CONFIG.imagePath;
+
+        // 超时检测
+        setTimeout(() => {
+            if (targetImage.naturalWidth === 0) {
+                onImageError();
+            }
+        }, 3000);
+
+        // 手动上传
+        fallbackBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (evt) => {
+                    targetImage.src = evt.target.result;
+                    // 重置状态
+                    fallbackBtn.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        });
+
+    </script>
+</body>
+</html>
